@@ -1,0 +1,13 @@
+{
+  "id": "software",
+  "title": "Desarrollo de Software",
+  "description": "Aplicaciones web y herramientas a medida, del prototipo al producto en producción.",
+  "camera": {
+    "center": [-76.5, 3.45],
+    "zoom": 14,
+    "pitch": 55,
+    "bearing": -20
+  },
+  "duration": 5000,
+  "markers": []
+}

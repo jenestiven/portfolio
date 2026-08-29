@@ -1,0 +1,13 @@
+{
+  "id": "gis",
+  "title": "GIS y Cartografía",
+  "description": "Pipelines de datos espaciales, análisis territorial y cartografía para toma de decisiones.",
+  "camera": {
+    "center": [-76.5, 3.45],
+    "zoom": 12,
+    "pitch": 45,
+    "bearing": 0
+  },
+  "duration": 5000,
+  "markers": []
+}

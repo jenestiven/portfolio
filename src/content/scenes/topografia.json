@@ -1,0 +1,13 @@
+{
+  "id": "topografia",
+  "title": "Topografía y Geomática",
+  "description": "Levantamientos, control geodésico y metodología catastral aplicada al territorio.",
+  "camera": {
+    "center": [-76.6, 3.4],
+    "zoom": 13,
+    "pitch": 75,
+    "bearing": 10
+  },
+  "duration": 5000,
+  "markers": []
+}

@@ -1,0 +1,13 @@
+{
+  "id": "intro",
+  "title": "Bienvenido a mi portafolio",
+  "description": "Explora mis proyectos y habilidades a través de un mapa interactivo.",
+  "camera": {
+    "center": [-76.50390623220709, 3.4645092703384264],
+    "zoom": 18,
+    "pitch": 40,
+    "bearing": -20
+  },
+  "duration": 8000,
+  "markers": []
+}
