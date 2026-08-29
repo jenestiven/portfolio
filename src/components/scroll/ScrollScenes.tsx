@@ -15,8 +15,10 @@ type Props = {
 export default function ScrollScenes({ scenes }: Props) {
   const ordered = [...scenes].sort((a, b) => orderIndex(a.id) - orderIndex(b.id))
 
+  // pointer-events-none también en el contenedor: si no, su caja tapa el mapa
+  // completo y los clics nunca llegan a los markers (MarkerLayer).
   return (
-    <div className="relative z-10">
+    <div className="pointer-events-none relative z-10">
       {/*
         Secciones sin contenido: solo dan altura de scroll y sirven de trigger
         para Scrollama. El título/descripción los pinta SceneOverlay.

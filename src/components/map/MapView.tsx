@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Map } from 'mapbox-gl'
 import scrollama from 'scrollama'
 import { initMap } from '../../lib/map/initMap'
 import { SceneManager } from '../../lib/map/SceneManager'
 import type { Scene } from '../../types'
+import MarkerLayer from './MarkerLayer'
 import SceneOverlay from './SceneOverlay'
 
 type Props = {
   scenes: Scene[]
 }
+
+/** Referencia estable para las escenas sin markers (evita setData en cada render). */
+const NO_MARKERS: Scene['markers'] = []
 
 export default function MapView({ scenes }: Props) {
   /**
@@ -19,6 +24,13 @@ export default function MapView({ scenes }: Props) {
   scenesRef.current = scenes
 
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
+  /**
+   * Se publica el mapa como estado solo después del 'load' para que los hijos
+   * (MarkerLayer) puedan añadir sources/layers sobre un estilo ya cargado.
+   */
+  const [map, setMap] = useState<Map | null>(null)
+  // Sprint 6 (ProjectPanel) consume este estado; aquí solo se levanta.
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
 
   useEffect(() => {
     const map = initMap('map')
@@ -40,11 +52,13 @@ export default function MapView({ scenes }: Props) {
         })
 
       window.addEventListener('resize', handleResize)
+      setMap(map)
     })
 
     return () => {
       window.removeEventListener('resize', handleResize)
       scroller.destroy()
+      setMap(null)
       map.remove()
     }
   }, [])
@@ -54,6 +68,13 @@ export default function MapView({ scenes }: Props) {
   return (
     <>
       <div id="map" className="h-full w-full" />
+      {map && (
+        <MarkerLayer
+          map={map}
+          markers={activeScene?.markers ?? NO_MARKERS}
+          onMarkerClick={setSelectedMarkerId}
+        />
+      )}
       <SceneOverlay activeScene={activeScene} />
     </>
   )
