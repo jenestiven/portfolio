@@ -83,8 +83,8 @@ type Props = {
   scenes: Scene[]
   /**
    * Mientras esté en true el dwell no dispara el avance automático: el tour
-   * queda congelado en la ciudad actual hasta que la interacción termine (hoy,
-   * hasta que se cierre el ProjectPanel — ver MapView).
+   * queda congelado en la ciudad actual hasta que la interacción termine — el
+   * carrito llega a destino y el usuario cierra el ProjectPanel (ver MapView).
    */
   interactionLock?: boolean
 }
@@ -228,10 +228,8 @@ export default function TourControl({ map, scenes, interactionLock = false }: Pr
   }, [start, stop])
 
   /**
-   * Pausa y reanudación del avance automático por interacción del usuario.
-   *
-   * TODO: sprint 10 debe también setear interactionLock = true mientras el
-   * carrito se mueve.
+   * Pausa y reanudación del avance automático por interacción del usuario:
+   * panel de proyecto abierto o carrito en movimiento (lo decide MapView).
    */
   useEffect(() => {
     lockRef.current = interactionLock

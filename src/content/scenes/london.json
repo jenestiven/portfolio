@@ -14,7 +14,7 @@
   "markers": [
     {
       "id": "uaegbs-catastro",
-      "coord": [-76.592, 3.404],
+      "coord": [-0.0077, 51.4832],
       "title": "Gestión catastral — UAEGBS",
       "type": "geospatial",
       "detail": {
@@ -26,7 +26,7 @@
     },
     {
       "id": "smartagro-productividad",
-      "coord": [-76.45, 3.48],
+      "coord": [-0.0053, 51.4808],
       "title": "SmartAgro — Mapas de productividad",
       "type": "geospatial",
       "detail": {
@@ -38,7 +38,7 @@
     },
     {
       "id": "siloe-susceptibilidad",
-      "coord": [-76.559, 3.428],
+      "coord": [-0.0014, 51.4769],
       "title": "Susceptibilidad a deslizamientos — Siloé, Cali",
       "type": "geospatial",
       "detail": {

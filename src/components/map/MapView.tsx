@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
@@ -7,6 +7,7 @@ import { initMap } from '../../lib/map/initMap'
 import { useGeoEntry } from '../../lib/map/useGeoEntry'
 import type { Scene } from '../../types'
 import MarkerLayer from './MarkerLayer'
+import ProjectMenu from './ProjectMenu'
 import ProjectPanel from './ProjectPanel'
 import SceneOverlay from './SceneOverlay'
 import TourControl from './TourControl'
@@ -44,10 +45,12 @@ const WELCOME_HOLD_MS = 3500
  */
 type EntryPhase = 'idle' | 'flying' | 'welcome' | 'done'
 
-/** Forma del gancho de consola que se publica solo en dev (ver efecto del mapa). */
-type CartEngineDevHook = {
-  driveTo: (origin: [number, number], destination: [number, number]) => Promise<void>
-}
+/**
+ * Dónde quedó estacionado el carrito en cada ciudad. Es la memoria del
+ * recorrido: el próximo viaje dentro de esa ciudad parte de ahí y no del
+ * centro de la escena.
+ */
+type CartPositionByScene = Record<string, [number, number] | null>
 
 export default function MapView({ scenes }: Props) {
   /**
@@ -71,6 +74,22 @@ export default function MapView({ scenes }: Props) {
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
   const [entryPhase, setEntryPhase] = useState<EntryPhase>('idle')
 
+  /** Carrito en movimiento: congela el tour igual que el panel abierto. */
+  const [driving, setDriving] = useState(false)
+  const [cartPositionByScene, setCartPositionByScene] = useState<CartPositionByScene>({})
+  /**
+   * Espejo del estado anterior: el handler del viaje lo lee y lo escribe fuera
+   * del ciclo de render (antes y después del await del recorrido), así dos
+   * viajes seguidos no se pisan con un valor viejo capturado en la clausura.
+   */
+  const cartPositionRef = useRef<CartPositionByScene>({})
+  /**
+   * Identifica el viaje en curso. Si el usuario elige otro proyecto a mitad de
+   * camino, el viaje viejo ve que el token cambió y se retira sin abrir su
+   * panel ni sobrescribir la posición del carrito.
+   */
+  const driveTokenRef = useRef(0)
+
   /**
    * Solo las escenas de TOUR_ORDER entran al recorrido, y en ese orden. Una
    * escena nueva en la colección aparece en el mapa pero no en el tour hasta
@@ -93,14 +112,6 @@ export default function MapView({ scenes }: Props) {
 
     map.on('load', () => {
       setMap(map)
-
-      // Gancho de prueba manual del CartEngine (sprint 10): en la consola,
-      // window.driveTo([lng, lat], [lng, lat]). El sprint 11 lo conecta al
-      // menú de proyectos y a los markers, y este bloque se retira.
-      if (import.meta.env.DEV) {
-        ;(window as unknown as CartEngineDevHook).driveTo = (origin, destination) =>
-          driveTo(map, origin, destination)
-      }
     })
 
     const handleMoveEnd = () => {
@@ -157,22 +168,70 @@ export default function MapView({ scenes }: Props) {
     }
   }, [map, geoEntry])
 
+  const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null
+
+  /**
+   * Única puerta de entrada a un proyecto, venga del menú o del clic directo
+   * sobre el marker: siempre se viaja en carrito hasta él y el panel se abre
+   * al llegar.
+   */
+  const handleSelectProject = useCallback(
+    async (markerId: string) => {
+      if (!map || !activeScene) return
+
+      const marker = activeScene.markers.find((marker) => marker.id === markerId)
+      if (!marker) return
+
+      // La ciudad se fija al arrancar: durante el viaje la cámara se mueve y
+      // activeSceneId podría recalcularse, pero el carrito pertenece a la
+      // ciudad desde la que partió.
+      const sceneId = activeScene.id
+      const origin = cartPositionRef.current[sceneId] ?? activeScene.camera.center
+      const token = ++driveTokenRef.current
+
+      setDriving(true)
+
+      await driveTo(map, origin, marker.coord)
+
+      // Otro proyecto tomó el volante mientras este viajaba.
+      if (token !== driveTokenRef.current) return
+
+      cartPositionRef.current[sceneId] = marker.coord
+      setCartPositionByScene((positions) => ({ ...positions, [sceneId]: marker.coord }))
+      // El lock no se suelta al bajar driving: lo sostiene el panel recién
+      // abierto hasta que el usuario lo cierre.
+      setSelectedMarkerId(markerId)
+      setDriving(false)
+    },
+    [activeScene, map]
+  )
+
   /**
    * Congela el avance automático del tour mientras el usuario está metido en
-   * algo: hoy, con el ProjectPanel abierto.
-   *
-   * TODO: sprint 10 debe también setear interactionLock = true mientras el
-   * carrito se mueve.
+   * algo: con el ProjectPanel abierto o con el carrito en movimiento.
    */
-  const interactionLock = selectedMarkerId !== null
+  const interactionLock = driving || selectedMarkerId !== null
 
-  const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null
   /**
    * El marker se resuelve contra la escena activa: si cambia la escena, el
    * panel se cierra solo porque el id deja de encontrarse.
    */
   const selectedMarker =
     activeScene?.markers.find((marker) => marker.id === selectedMarkerId) ?? null
+
+  /**
+   * Proyecto donde quedó estacionado el carrito en esta ciudad — el punto de
+   * partida del próximo viaje. El menú lo marca para que el usuario vea desde
+   * dónde va a salir, incluso con el panel ya cerrado.
+   */
+  const cartPosition = (activeSceneId && cartPositionByScene[activeSceneId]) || null
+  const cartAtMarkerId =
+    activeScene?.markers.find(
+      (marker) =>
+        cartPosition !== null &&
+        marker.coord[0] === cartPosition[0] &&
+        marker.coord[1] === cartPosition[1]
+    )?.id ?? null
 
   return (
     <>
@@ -182,7 +241,7 @@ export default function MapView({ scenes }: Props) {
           <MarkerLayer
             map={map}
             markers={activeScene?.markers ?? NO_MARKERS}
-            onMarkerClick={setSelectedMarkerId}
+            onMarkerClick={handleSelectProject}
           />
           <ProjectPanel
             map={map}
@@ -200,6 +259,13 @@ export default function MapView({ scenes }: Props) {
       )}
       {/* Ambos overlays comparten esquina: el de escena espera a que pase el saludo. */}
       <SceneOverlay activeScene={entryPhase === 'done' ? activeScene : null} />
+      {entryPhase === 'done' && (
+        <ProjectMenu
+          scene={activeScene}
+          onSelectProject={handleSelectProject}
+          cartAtMarkerId={cartAtMarkerId}
+        />
+      )}
     </>
   )
 }

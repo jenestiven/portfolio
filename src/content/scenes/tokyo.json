@@ -14,7 +14,7 @@
   "markers": [
     {
       "id": "quesuda",
-      "coord": [-76.507, 3.452],
+      "coord": [139.7292, 35.6605],
       "title": "Quesuda",
       "type": "software",
       "detail": {
@@ -26,7 +26,7 @@
     },
     {
       "id": "cliente-internacional",
-      "coord": [-76.497, 3.447],
+      "coord": [139.7486, 35.6575],
       "title": "Proyecto para cliente internacional",
       "type": "software",
       "detail": {
@@ -38,7 +38,7 @@
     },
     {
       "id": "cda",
-      "coord": [-76.502, 3.443],
+      "coord": [139.7495, 35.6648],
       "title": "CDA",
       "type": "software",
       "detail": {
