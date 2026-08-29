@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
@@ -15,6 +15,12 @@ type Props = {
 
 /** Referencia estable para las escenas sin markers (evita setData en cada render). */
 const NO_MARKERS: Scene['markers'] = []
+
+/**
+ * Paradas del tour guiado, en orden. Es la fuente de verdad del recorrido:
+ * el orden no depende del glob de la Content Collection.
+ */
+const TOUR_ORDER = ['cali', 'london', 'tokyo'] as const
 
 export default function MapView({ scenes }: Props) {
   /**
@@ -36,6 +42,19 @@ export default function MapView({ scenes }: Props) {
    */
   const [map, setMap] = useState<Map | null>(null)
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
+
+  /**
+   * Solo las escenas de TOUR_ORDER entran al recorrido, y en ese orden. Una
+   * escena nueva en la colección aparece en el mapa pero no en el tour hasta
+   * que se la agregue aquí explícitamente.
+   */
+  const tourScenes = useMemo(
+    () =>
+      TOUR_ORDER.map((id) => scenes.find((scene) => scene.id === id)).filter(
+        (scene): scene is Scene => scene !== undefined
+      ),
+    [scenes]
+  )
 
   useEffect(() => {
     const map = initMap('map')
@@ -88,7 +107,7 @@ export default function MapView({ scenes }: Props) {
             marker={selectedMarker}
             onClose={() => setSelectedMarkerId(null)}
           />
-          <TourControl map={map} scenes={scenes} />
+          <TourControl map={map} scenes={tourScenes} />
         </>
       )}
       <SceneOverlay activeScene={activeScene} />

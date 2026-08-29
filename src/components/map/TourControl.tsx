@@ -1,12 +1,42 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
-import { SceneManager } from '../../lib/map/SceneManager'
+import distance from '@turf/distance'
+import { point } from '@turf/helpers'
+import { DEFAULT_FLY_DURATION_MS, SceneManager } from '../../lib/map/SceneManager'
 import type { Scene } from '../../types'
 
-/** Debe coincidir con el fallback de SceneManager.goTo(). */
-const DEFAULT_DURATION_MS = 4000
 /** Pausa en cada escena una vez que la cámara aterriza, antes de saltar a la siguiente. */
 const DWELL_MS = 1500
+
+/**
+ * Por debajo de este umbral el tramo es un movimiento local (reencuadre dentro
+ * de la misma ciudad): no se le impone duración, manda la `duration` de la escena.
+ */
+const LOCAL_HOP_KM = 500
+/** Tramo que ya se cobra el tiempo máximo — media vuelta al planeta. */
+const LONGEST_HOP_KM = 12000
+/** Rango de duración de un vuelo entre ciudades. */
+const MIN_FLIGHT_MS = 6000
+const MAX_FLIGHT_MS = 10000
+
+/**
+ * Duración del tramo en ms, proporcional a la distancia recorrida. Devuelve
+ * `undefined` en movimientos locales para que la escena conserve su tiempo.
+ *
+ * Solo se controla el tiempo: la altura del vuelo la decide la curva por
+ * defecto de `flyTo`, que en trayectos de miles de km se aleja hasta vista de
+ * globo y vuelve a acercarse al aterrizar.
+ */
+function legDurationMs(scene: Scene, fromLng: number, fromLat: number): number | undefined {
+  const km = distance(point([fromLng, fromLat]), point(scene.camera.center), {
+    units: 'kilometers',
+  })
+
+  if (km < LOCAL_HOP_KM) return undefined
+
+  const ratio = Math.min((km - LOCAL_HOP_KM) / (LONGEST_HOP_KM - LOCAL_HOP_KM), 1)
+  return Math.round(MIN_FLIGHT_MS + (MAX_FLIGHT_MS - MIN_FLIGHT_MS) * ratio)
+}
 
 /**
  * Índice de la escena cuya cámara está más cerca del punto dado. La distancia
@@ -45,6 +75,7 @@ function isUserGesture(event: unknown): boolean {
 type Props = {
   /** Instancia única de Mapbox, ya con el estilo cargado. */
   map: Map
+  /** Paradas del tour, ya en el orden del recorrido (las ordena MapView). */
   scenes: Scene[]
 }
 
@@ -93,15 +124,20 @@ export default function TourControl({ map, scenes }: Props) {
           return
         }
 
-        manager.goTo(scene)
+        // El tramo se mide desde donde está la cámara ahora, no desde la
+        // escena anterior: así también sale bien al retomar el tour a mitad.
+        const { lng, lat } = map.getCenter()
+        const duration = legDurationMs(scene, lng, lat)
 
-        const wait = (scene.duration ?? DEFAULT_DURATION_MS) + DWELL_MS
+        manager.goTo(scene, { duration })
+
+        const wait = (duration ?? scene.duration ?? DEFAULT_FLY_DURATION_MS) + DWELL_MS
         timerRef.current = window.setTimeout(() => step(index + 1), wait)
       }
 
       step(fromIndex)
     },
-    [manager]
+    [manager, map]
   )
 
   // Al cargar, la cámara ejecuta el flythrough automático desde la primera escena.

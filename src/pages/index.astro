@@ -4,14 +4,10 @@ import MapView from '../components/map/MapView.tsx';
 import Layout from '../layouts/Layout.astro';
 import type { Scene } from '../types';
 
-/** Orden de las paradas del tour guiado: Cali → Londres → Tokio. */
-const TOUR_ORDER = ['cali', 'london', 'tokyo'];
-
+// El orden del recorrido lo decide TOUR_ORDER en MapView.tsx, no el glob de
+// la colección: aquí solo se entregan las escenas disponibles.
 const entries = await getCollection('scenes');
-// El orden no se deja al azar del glob: es el recorrido que ejecuta TourControl.
-const scenes: Scene[] = entries
-	.map((entry) => entry.data)
-	.sort((a, b) => TOUR_ORDER.indexOf(a.id) - TOUR_ORDER.indexOf(b.id));
+const scenes: Scene[] = entries.map((entry) => entry.data);
 ---
 
 <Layout>
