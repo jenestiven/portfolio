@@ -1,6 +1,7 @@
 {
   "id": "cali",
   "title": "Bienvenido a mi portafolio",
+  "city": "Cali",
   "description": "Explora mis proyectos y habilidades a través de un mapa interactivo.",
   "camera": {
     "center": [-76.50390623220709, 3.4645092703384264],

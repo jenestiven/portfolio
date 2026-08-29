@@ -3,11 +3,13 @@ import type { Map } from 'mapbox-gl'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
 import { initMap } from '../../lib/map/initMap'
+import { useGeoEntry } from '../../lib/map/useGeoEntry'
 import type { Scene } from '../../types'
 import MarkerLayer from './MarkerLayer'
 import ProjectPanel from './ProjectPanel'
 import SceneOverlay from './SceneOverlay'
 import TourControl from './TourControl'
+import WelcomeOverlay from './WelcomeOverlay'
 
 type Props = {
   scenes: Scene[]
@@ -21,6 +23,25 @@ const NO_MARKERS: Scene['markers'] = []
  * el orden no depende del glob de la Content Collection.
  */
 const TOUR_ORDER = ['cali', 'london', 'tokyo'] as const
+
+/** Escena contra la que se mide si el usuario está "en casa" (ver useGeoEntry). */
+const HOME_SCENE_ID = 'cali'
+
+/** Encuadre del aterrizaje: calle a la vista, cámara inclinada. */
+const LANDING_ZOOM = 15
+const LANDING_PITCH = 60
+const LANDING_BEARING = 0
+/** Vuelo cinematográfico desde la vista de globo con la que carga el mapa. */
+const LANDING_FLY_MS = 5000
+/** Tiempo que el saludo queda en pantalla antes de ceder el paso al tour. */
+const WELCOME_HOLD_MS = 3500
+
+/**
+ * Etapas de la entrada. El tour no arranca hasta 'done': el `TourControl` se
+ * monta al final de la secuencia, así su lógica interna sigue siendo
+ * "arranco al montarme" sin saber nada del aterrizaje.
+ */
+type EntryPhase = 'idle' | 'flying' | 'welcome' | 'done'
 
 export default function MapView({ scenes }: Props) {
   /**
@@ -42,6 +63,7 @@ export default function MapView({ scenes }: Props) {
    */
   const [map, setMap] = useState<Map | null>(null)
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
+  const [entryPhase, setEntryPhase] = useState<EntryPhase>('idle')
 
   /**
    * Solo las escenas de TOUR_ORDER entran al recorrido, y en ese orden. Una
@@ -55,6 +77,10 @@ export default function MapView({ scenes }: Props) {
       ),
     [scenes]
   )
+
+  const homeCenter =
+    scenes.find((scene) => scene.id === HOME_SCENE_ID)?.camera.center ?? null
+  const geoEntry = useGeoEntry(homeCenter)
 
   useEffect(() => {
     const map = initMap('map')
@@ -84,6 +110,46 @@ export default function MapView({ scenes }: Props) {
     }
   }, [])
 
+  /**
+   * Secuencia de entrada: vuelo al punto de aterrizaje → saludo → tour. Corre
+   * una sola vez, cuando el mapa ya cargó y la geolocalización ya resolvió
+   * (con posición real o con el fallback); `map` y `geoEntry` no vuelven a
+   * cambiar después de eso.
+   */
+  useEffect(() => {
+    if (!map || !geoEntry) return
+
+    setEntryPhase('flying')
+    map.flyTo({
+      center: geoEntry.landingPoint,
+      zoom: LANDING_ZOOM,
+      pitch: LANDING_PITCH,
+      bearing: LANDING_BEARING,
+      duration: LANDING_FLY_MS,
+      essential: true,
+    })
+
+    const toWelcome = window.setTimeout(() => setEntryPhase('welcome'), LANDING_FLY_MS)
+    const toTour = window.setTimeout(
+      () => setEntryPhase('done'),
+      LANDING_FLY_MS + WELCOME_HOLD_MS
+    )
+
+    return () => {
+      window.clearTimeout(toWelcome)
+      window.clearTimeout(toTour)
+    }
+  }, [map, geoEntry])
+
+  /**
+   * Congela el avance automático del tour mientras el usuario está metido en
+   * algo: hoy, con el ProjectPanel abierto.
+   *
+   * TODO: sprint 10 debe también setear interactionLock = true mientras el
+   * carrito se mueve.
+   */
+  const interactionLock = selectedMarkerId !== null
+
   const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null
   /**
    * El marker se resuelve contra la escena activa: si cambia la escena, el
@@ -107,10 +173,17 @@ export default function MapView({ scenes }: Props) {
             marker={selectedMarker}
             onClose={() => setSelectedMarkerId(null)}
           />
-          <TourControl map={map} scenes={tourScenes} />
+          {/* El tour arranca al montarse este componente: se monta al terminar la entrada. */}
+          {entryPhase === 'done' && (
+            <TourControl map={map} scenes={tourScenes} interactionLock={interactionLock} />
+          )}
         </>
       )}
-      <SceneOverlay activeScene={activeScene} />
+      {entryPhase === 'welcome' && geoEntry && (
+        <WelcomeOverlay usedRealLocation={geoEntry.usedRealLocation} />
+      )}
+      {/* Ambos overlays comparten esquina: el de escena espera a que pase el saludo. */}
+      <SceneOverlay activeScene={entryPhase === 'done' ? activeScene : null} />
     </>
   )
 }

@@ -33,6 +33,8 @@ export type Marker = {
 export type Scene = {
   id: string
   title: string
+  /** Nombre corto de la ciudad, para el menú del tour. Cae a `title` si falta. */
+  city?: string
   description: string
   camera: {
     center: [number, number]

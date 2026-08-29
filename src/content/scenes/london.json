@@ -1,6 +1,7 @@
 {
   "id": "london",
   "title": "Geoespacial — Topografía y GIS",
+  "city": "Londres",
   "description": "Levantamientos, control geodésico y metodología catastral, junto a pipelines de datos espaciales, análisis territorial y cartografía para toma de decisiones.",
   "camera": {
     "center": [-0.0005, 51.4769],

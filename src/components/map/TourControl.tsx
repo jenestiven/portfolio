@@ -5,8 +5,12 @@ import { point } from '@turf/helpers'
 import { DEFAULT_FLY_DURATION_MS, SceneManager } from '../../lib/map/SceneManager'
 import type { Scene } from '../../types'
 
-/** Pausa en cada escena una vez que la cámara aterriza, antes de saltar a la siguiente. */
-const DWELL_MS = 1500
+/**
+ * Pausa mínima en cada ciudad, contada desde que la cámara aterriza. Es
+ * independiente de la duración del vuelo: aunque el `flyTo` termine antes, la
+ * escena se queda en pantalla estos 20s antes del siguiente `goTo`.
+ */
+const DWELL_MS = 20000
 
 /**
  * Por debajo de este umbral el tramo es un movimiento local (reencuadre dentro
@@ -77,15 +81,25 @@ type Props = {
   map: Map
   /** Paradas del tour, ya en el orden del recorrido (las ordena MapView). */
   scenes: Scene[]
+  /**
+   * Mientras esté en true el dwell no dispara el avance automático: el tour
+   * queda congelado en la ciudad actual hasta que la interacción termine (hoy,
+   * hasta que se cierre el ProjectPanel — ver MapView).
+   */
+  interactionLock?: boolean
 }
 
 /**
  * Recorrido guiado interrumpible: arranca solo al montar, se cancela con el
  * primer gesto del usuario y se retoma desde la escena más cercana a donde
- * haya quedado la cámara.
+ * haya quedado la cámara. Los controles manuales (atrás, adelante, menú de
+ * ciudades) también lo pasan a modo libre.
  */
-export default function TourControl({ map, scenes }: Props) {
+export default function TourControl({ map, scenes, interactionLock = false }: Props) {
   const [running, setRunning] = useState(false)
+  /** Última parada a la que se voló, sea por el scheduler o a mano. */
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   /**
    * Las escenas se leen desde un ref para que el scheduler no dependa de la
@@ -94,24 +108,71 @@ export default function TourControl({ map, scenes }: Props) {
   const scenesRef = useRef(scenes)
   scenesRef.current = scenes
 
-  const timerRef = useRef<number | null>(null)
+  /** Espera a que aterrice el vuelo; al vencer arranca el dwell de la ciudad. */
+  const flightTimerRef = useRef<number | null>(null)
+  /** Espera en la ciudad. Es el único cancelable/reanudable por interactionLock. */
+  const dwellTimerRef = useRef<number | null>(null)
+  /** Lo que falta del dwell: se descuenta al pausar para no reiniciar los 20s. */
+  const dwellRemainingRef = useRef(DWELL_MS)
+  /** Momento en que se armó el dwell vigente, o null si está pausado. */
+  const dwellStartedAtRef = useRef<number | null>(null)
+  /** Escena a la que se saltará al vencer el dwell, o null si no hay avance en cola. */
+  const pendingIndexRef = useRef<number | null>(null)
+  /** El lock se lee desde un ref: los timers viven fuera del ciclo de render. */
+  const lockRef = useRef(interactionLock)
+  /** El paso del scheduler, para poder retomarlo desde el efecto del lock. */
+  const stepRef = useRef<((index: number) => void) | null>(null)
+
   const manager = useMemo(() => new SceneManager(map), [map])
 
-  const stop = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current)
-      timerRef.current = null
+  const clearTimers = useCallback(() => {
+    if (flightTimerRef.current !== null) {
+      window.clearTimeout(flightTimerRef.current)
+      flightTimerRef.current = null
     }
-    setRunning(false)
+    if (dwellTimerRef.current !== null) {
+      window.clearTimeout(dwellTimerRef.current)
+      dwellTimerRef.current = null
+    }
+    dwellStartedAtRef.current = null
+    pendingIndexRef.current = null
   }, [])
 
-  /** Encadena las escenas desde fromIndex hasta la última, una por timeout. */
+  const stop = useCallback(() => {
+    clearTimers()
+    setRunning(false)
+  }, [clearTimers])
+
+  /**
+   * Arma la espera en la ciudad actual. Con el lock puesto no se programa nada:
+   * el avance queda en cola con su tiempo restante y lo retoma el efecto del
+   * lock cuando la interacción termina.
+   */
+  const armDwell = useCallback((nextIndex: number, remainingMs: number) => {
+    pendingIndexRef.current = nextIndex
+    dwellRemainingRef.current = remainingMs
+
+    if (lockRef.current) {
+      dwellStartedAtRef.current = null
+      return
+    }
+
+    dwellStartedAtRef.current = Date.now()
+    dwellTimerRef.current = window.setTimeout(() => {
+      dwellTimerRef.current = null
+      dwellStartedAtRef.current = null
+      pendingIndexRef.current = null
+      stepRef.current?.(nextIndex)
+    }, remainingMs)
+  }, [])
+
+  /** Encadena las escenas desde fromIndex hasta la última: vuelo → dwell → vuelo. */
   const start = useCallback(
     (fromIndex: number) => {
       const tourScenes = scenesRef.current
       if (tourScenes.length === 0) return
 
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+      clearTimers()
       setRunning(true)
 
       const step = (index: number) => {
@@ -119,7 +180,6 @@ export default function TourControl({ map, scenes }: Props) {
 
         // Se acabaron las escenas: el tour se apaga solo.
         if (!scene) {
-          timerRef.current = null
           setRunning(false)
           return
         }
@@ -130,14 +190,35 @@ export default function TourControl({ map, scenes }: Props) {
         const duration = legDurationMs(scene, lng, lat)
 
         manager.goTo(scene, { duration })
+        setCurrentIndex(index)
 
-        const wait = (duration ?? scene.duration ?? DEFAULT_FLY_DURATION_MS) + DWELL_MS
-        timerRef.current = window.setTimeout(() => step(index + 1), wait)
+        // El dwell se cuenta desde el aterrizaje, no desde el despegue.
+        const flightMs = duration ?? scene.duration ?? DEFAULT_FLY_DURATION_MS
+        flightTimerRef.current = window.setTimeout(() => {
+          flightTimerRef.current = null
+          armDwell(index + 1, DWELL_MS)
+        }, flightMs)
       }
 
+      stepRef.current = step
       step(fromIndex)
     },
-    [manager, map]
+    [armDwell, clearTimers, manager, map]
+  )
+
+  /** Salto manual a una parada: apaga el modo automático y vuela hasta ella. */
+  const goToIndex = useCallback(
+    (index: number) => {
+      const scene = scenesRef.current[index]
+      if (!scene) return
+
+      stop()
+
+      const { lng, lat } = map.getCenter()
+      manager.goTo(scene, { duration: legDurationMs(scene, lng, lat) })
+      setCurrentIndex(index)
+    },
+    [manager, map, stop]
   )
 
   // Al cargar, la cámara ejecuta el flythrough automático desde la primera escena.
@@ -145,6 +226,40 @@ export default function TourControl({ map, scenes }: Props) {
     start(0)
     return stop
   }, [start, stop])
+
+  /**
+   * Pausa y reanudación del avance automático por interacción del usuario.
+   *
+   * TODO: sprint 10 debe también setear interactionLock = true mientras el
+   * carrito se mueve.
+   */
+  useEffect(() => {
+    lockRef.current = interactionLock
+
+    if (interactionLock) {
+      // Se congela lo que falte del dwell para retomarlo donde iba.
+      if (dwellTimerRef.current !== null) {
+        window.clearTimeout(dwellTimerRef.current)
+        dwellTimerRef.current = null
+
+        const startedAt = dwellStartedAtRef.current
+        if (startedAt !== null) {
+          dwellRemainingRef.current = Math.max(
+            dwellRemainingRef.current - (Date.now() - startedAt),
+            0
+          )
+          dwellStartedAtRef.current = null
+        }
+      }
+      return
+    }
+
+    // Se soltó el lock: si había un avance en cola, se retoma con lo que faltaba.
+    const pending = pendingIndexRef.current
+    if (pending !== null && dwellTimerRef.current === null) {
+      armDwell(pending, dwellRemainingRef.current)
+    }
+  }, [armDwell, interactionLock])
 
   // Cualquier gesto del usuario cancela el tour y pasa el mapa a modo libre.
   useEffect(() => {
@@ -165,7 +280,19 @@ export default function TourControl({ map, scenes }: Props) {
     }
   }, [map, stop])
 
-  const handleClick = () => {
+  // El menú flotante se cierra con Escape, como cualquier popover.
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [menuOpen])
+
+  const handleToggle = () => {
     if (running) {
       map.stop()
       stop()
@@ -177,22 +304,128 @@ export default function TourControl({ map, scenes }: Props) {
     start(nearestSceneIndex(scenesRef.current, lng, lat))
   }
 
+  const handleSelect = (index: number) => {
+    setMenuOpen(false)
+    goToIndex(index)
+  }
+
+  const atFirst = currentIndex <= 0
+  const atLast = currentIndex >= scenes.length - 1
+
+  const stepButton =
+    'flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white shadow-lg backdrop-blur-md transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-black/60'
+
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-pressed={running}
-      className="fixed bottom-16 right-6 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-5 py-3 text-sm font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75 sm:right-10"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className={`h-4 w-4 ${running ? 'animate-spin [animation-duration:6s]' : ''}`}
+    <div className="fixed right-6 bottom-16 z-20 flex items-center gap-2 sm:right-10">
+      <button
+        type="button"
+        onClick={() => goToIndex(Math.max(currentIndex - 1, 0))}
+        disabled={atFirst}
+        aria-label="Ciudad anterior"
+        title="Ciudad anterior"
+        className={stepButton}
       >
-        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M15.5 8.5 10.5 10.5 8.5 15.5 13.5 13.5Z" fill="currentColor" />
-      </svg>
-      {running ? 'Detener recorrido' : 'Continuar recorrido'}
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden="true"
+        >
+          <path d="M14 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-4 text-sm font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            aria-hidden="true"
+          >
+            <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" strokeLinejoin="round" />
+            <circle cx="12" cy="10" r="2.4" />
+          </svg>
+          Ciudades
+        </button>
+
+        {menuOpen && (
+          <ul
+            role="menu"
+            aria-label="Ciudades del recorrido"
+            className="animate-scene-in absolute right-0 bottom-full mb-2 min-w-44 overflow-hidden rounded-2xl border border-white/10 bg-black/80 py-1 text-sm text-white shadow-xl backdrop-blur-md"
+          >
+            {scenes.map((scene, index) => (
+              <li key={scene.id} role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleSelect(index)}
+                  aria-current={index === currentIndex}
+                  className={`flex w-full items-center gap-2 px-4 py-2 text-left transition hover:bg-white/10 ${
+                    index === currentIndex ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      index === currentIndex ? 'bg-white' : 'bg-white/25'
+                    }`}
+                  />
+                  {scene.city ?? scene.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => goToIndex(Math.min(currentIndex + 1, scenes.length - 1))}
+        disabled={atLast}
+        aria-label="Ciudad siguiente"
+        title="Ciudad siguiente"
+        className={stepButton}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden="true"
+        >
+          <path d="M10 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        onClick={handleToggle}
+        aria-pressed={running}
+        className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-5 text-sm font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={`h-4 w-4 ${running ? 'animate-spin [animation-duration:6s]' : ''}`}
+        >
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M15.5 8.5 10.5 10.5 8.5 15.5 13.5 13.5Z" fill="currentColor" />
+        </svg>
+        {running ? 'Detener recorrido' : 'Continuar recorrido'}
+      </button>
+    </div>
   )
 }
