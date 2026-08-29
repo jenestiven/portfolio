@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import MapView from '../components/map/MapView.tsx';
+import ContactWidget from '../components/ui/ContactWidget.tsx';
 import Layout from '../layouts/Layout.astro';
 import type { Scene } from '../types';
 
@@ -15,4 +16,10 @@ const scenes: Scene[] = entries.map((entry) => entry.data);
 	<div class="fixed inset-0 z-0">
 		<MapView scenes={scenes} client:load />
 	</div>
+
+	<!--
+		Contacto fuera del contenedor del mapa: es independiente de la escena
+		activa y del tour, y sobrevive a cualquier cambio dentro de MapView.
+	-->
+	<ContactWidget client:load />
 </Layout>

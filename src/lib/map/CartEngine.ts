@@ -20,11 +20,11 @@ import { lineString } from '@turf/helpers'
  * si la ruta mide 200 m o 3 km, el viaje siempre dura lo mismo para que la
  * navegación se sienta ágil.
  */
-export const DRIVE_DURATION_MS = 4000
+export const DRIVE_DURATION_MS = 6000
 
 /** Encuadre "vista de conductor" que se mantiene durante todo el trayecto. */
-const DRIVE_ZOOM = 17
-const DRIVE_PITCH = 45
+const DRIVE_ZOOM = 19
+const DRIVE_PITCH = 60
 
 /**
  * Distancia (km) que se mira hacia adelante sobre la ruta para calcular el
@@ -40,16 +40,16 @@ const REMAINING_ID = 'route-remaining'
 const TRAVELED_ID = 'route-traveled'
 const REMAINING_COLOR = '#3B82F6'
 const TRAVELED_COLOR = '#9CA3AF'
-const ROUTE_WIDTH = 4
+const ROUTE_WIDTH = 8
 
-const CAR_ICON_SIZE_PX = 36
+const CAR_ICON_SIZE_PX = 64
 
 /**
  * El SVG viene dibujado en perspectiva isométrica con el frente hacia la
  * esquina inferior derecha (~120°). Este offset lo compensa para que un rumbo
  * de 0° deje el carro apuntando hacia arriba en pantalla.
  */
-const CAR_ICON_HEADING_OFFSET_DEG = -120
+const CAR_ICON_HEADING_OFFSET_DEG = 0
 
 type RouteLine = ReturnType<typeof lineString>
 type LngLat = [number, number]
