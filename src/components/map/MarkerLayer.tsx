@@ -5,6 +5,9 @@ import type { Marker } from '../../types'
 const SOURCE_ID = 'scene-markers'
 const LAYER_ID = 'scene-markers'
 
+/** Lo consume ProjectPanel para insertar sus capas por debajo de los markers. */
+export const MARKER_LAYER_ID = LAYER_ID
+
 /** Solo lo que la capa necesita del marker: la geometría y lo que va en properties. */
 type MarkerFeature = {
   type: 'Feature'

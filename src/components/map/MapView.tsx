@@ -5,6 +5,7 @@ import { initMap } from '../../lib/map/initMap'
 import { SceneManager } from '../../lib/map/SceneManager'
 import type { Scene } from '../../types'
 import MarkerLayer from './MarkerLayer'
+import ProjectPanel from './ProjectPanel'
 import SceneOverlay from './SceneOverlay'
 
 type Props = {
@@ -29,7 +30,6 @@ export default function MapView({ scenes }: Props) {
    * (MarkerLayer) puedan añadir sources/layers sobre un estilo ya cargado.
    */
   const [map, setMap] = useState<Map | null>(null)
-  // Sprint 6 (ProjectPanel) consume este estado; aquí solo se levanta.
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -64,16 +64,29 @@ export default function MapView({ scenes }: Props) {
   }, [])
 
   const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null
+  /**
+   * El marker se resuelve contra la escena activa: si el usuario scrollea a
+   * otra escena, el panel se cierra solo porque el id deja de encontrarse.
+   */
+  const selectedMarker =
+    activeScene?.markers.find((marker) => marker.id === selectedMarkerId) ?? null
 
   return (
     <>
       <div id="map" className="h-full w-full" />
       {map && (
-        <MarkerLayer
-          map={map}
-          markers={activeScene?.markers ?? NO_MARKERS}
-          onMarkerClick={setSelectedMarkerId}
-        />
+        <>
+          <MarkerLayer
+            map={map}
+            markers={activeScene?.markers ?? NO_MARKERS}
+            onMarkerClick={setSelectedMarkerId}
+          />
+          <ProjectPanel
+            map={map}
+            marker={selectedMarker}
+            onClose={() => setSelectedMarkerId(null)}
+          />
+        </>
       )}
       <SceneOverlay activeScene={activeScene} />
     </>

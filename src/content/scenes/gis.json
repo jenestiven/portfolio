@@ -9,5 +9,30 @@
     "bearing": 0
   },
   "duration": 5000,
-  "markers": []
+  "markers": [
+    {
+      "id": "smartagro-productividad",
+      "coord": [-76.45, 3.48],
+      "title": "SmartAgro — Mapas de productividad",
+      "type": "geospatial",
+      "detail": {
+        "kind": "geospatial",
+        "description": "Diseño y operación de un pipeline geoespacial para generar mapas de productividad por lote a partir de imágenes multiespectrales y variables agronómicas, orientado a manejo diferenciado por zonas dentro de cada lote. El proyecto se presenta a nivel de arquitectura y proceso: no se publican datos, rendimientos ni geometrías del cliente.",
+        "diagramAsset": "/diagrams/smartagro-flujo.svg",
+        "methodologyText": "1. Ingesta — incorporación periódica de imágenes multiespectrales (satelitales y de dron) junto con las geometrías de los lotes y los registros agronómicos asociados.\n\n2. Preprocesamiento — corrección y homogeneización de las escenas, enmascarado de nubes y sombras, recorte por geometría de lote y remuestreo a una grilla común.\n\n3. Índices y series temporales — cálculo de índices de vegetación (NDVI, NDRE y similares) y construcción de series por lote para observar el comportamiento del cultivo a lo largo del ciclo.\n\n4. Zonificación — clasificación no supervisada de la variabilidad intra-lote en zonas de manejo estables en el tiempo, descartando el ruido de fechas puntuales.\n\n5. Cruce agronómico — contraste de las zonas obtenidas con las variables de manejo disponibles para dar interpretación agronómica a cada clase.\n\n6. Publicación — almacenamiento de resultados en base de datos espacial y exposición como servicio de mapas para consulta en tablero.\n\nHerramientas: Python (rasterio, GDAL, scikit-learn), PostGIS, QGIS y servicios OGC para la publicación."
+      }
+    },
+    {
+      "id": "siloe-susceptibilidad",
+      "coord": [-76.559, 3.428],
+      "title": "Susceptibilidad a deslizamientos — Siloé, Cali",
+      "type": "geospatial",
+      "detail": {
+        "kind": "geospatial",
+        "description": "Trabajo de grado sobre la evaluación de susceptibilidad a movimientos en masa en la ladera occidental de Cali (comuna 20, Siloé), una zona de alta pendiente y ocupación urbana informal. El estudio combina los factores condicionantes del terreno con un inventario de eventos registrados para producir un mapa de susceptibilidad que sirva como insumo de ordenamiento y gestión del riesgo. Al tratarse de un trabajo académico con datos de dominio público, es el único caso del portafolio con la capa cartográfica disponible sobre el mapa.",
+        "diagramAsset": "/diagrams/siloe-flujo.svg",
+        "methodologyText": "1. Inventario de eventos — recopilación y georreferenciación de los movimientos en masa registrados en la zona de estudio, base para calibrar y validar el modelo.\n\n2. Variables condicionantes — derivadas del modelo digital de elevación (pendiente, orientación, curvatura y acumulación de flujo), cobertura y uso del suelo obtenidos de imágenes Sentinel-2, y variables de contexto construidas sobre datos de OpenStreetMap (distancia a vías, a drenajes y a la trama urbana).\n\n3. Homogeneización — reproyección al marco MAGNA-SIRGAS, remuestreo de todas las variables a una grilla común y reclasificación de cada factor en categorías comparables.\n\n4. Modelo de susceptibilidad — ponderación multicriterio de los factores condicionantes y combinación en un índice continuo, posteriormente reclasificado en niveles de susceptibilidad.\n\n5. Validación — contraste del mapa resultante contra el inventario de eventos mediante curvas de éxito/predicción, para verificar la capacidad discriminante del modelo.\n\n6. Cartografía final — edición del mapa de susceptibilidad y publicación de la capa como servicio consultable.\n\nHerramientas: QGIS, Python (GDAL, NumPy, pandas), imágenes Sentinel-2 y datos de OpenStreetMap."
+      }
+    }
+  ]
 }
