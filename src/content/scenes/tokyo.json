@@ -1,14 +1,15 @@
 {
-  "id": "software",
+  "id": "tokyo",
   "title": "Desarrollo de Software",
   "description": "Aplicaciones web y herramientas a medida, del prototipo al producto en producción.",
   "camera": {
-    "center": [-76.5, 3.45],
-    "zoom": 14,
-    "pitch": 55,
-    "bearing": -20
+    "center": [139.7454, 35.6586],
+    "zoom": 16,
+    "pitch": 60,
+    "bearing": 0
   },
   "duration": 5000,
+  "radiusKm": 5,
   "markers": [
     {
       "id": "quesuda",

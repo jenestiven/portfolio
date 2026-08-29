@@ -45,6 +45,8 @@ const scenes = defineCollection({
     description: z.string(),
     camera: cameraSchema,
     duration: z.number().optional(),
+    /** Radio en km alrededor de camera.center para la detección de escena activa. */
+    radiusKm: z.number().positive(),
     markers: z.array(markerSchema),
   }),
 })

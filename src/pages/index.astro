@@ -1,20 +1,22 @@
 ---
 import { getCollection } from 'astro:content';
 import MapView from '../components/map/MapView.tsx';
-import ScrollScenes from '../components/scroll/ScrollScenes.tsx';
 import Layout from '../layouts/Layout.astro';
 import type { Scene } from '../types';
 
+/** Orden de las paradas del tour guiado: Cali → Londres → Tokio. */
+const TOUR_ORDER = ['cali', 'london', 'tokyo'];
+
 const entries = await getCollection('scenes');
-const scenes: Scene[] = entries.map((entry) => entry.data);
+// El orden no se deja al azar del glob: es el recorrido que ejecuta TourControl.
+const scenes: Scene[] = entries
+	.map((entry) => entry.data)
+	.sort((a, b) => TOUR_ORDER.indexOf(a.id) - TOUR_ORDER.indexOf(b.id));
 ---
 
 <Layout>
-	<!-- Mapa de fondo: una sola instancia, fija, por debajo del scroll -->
+	<!-- Mapa a pantalla completa: una sola instancia, sin scroll de página. -->
 	<div class="fixed inset-0 z-0">
 		<MapView scenes={scenes} client:load />
 	</div>
-
-	<!-- Secciones scrolleables encima del mapa -->
-	<ScrollScenes scenes={scenes} />
 </Layout>

@@ -1,5 +1,5 @@
 {
-  "id": "intro",
+  "id": "cali",
   "title": "Bienvenido a mi portafolio",
   "description": "Explora mis proyectos y habilidades a través de un mapa interactivo.",
   "camera": {
@@ -9,5 +9,6 @@
     "bearing": -20
   },
   "duration": 8000,
+  "radiusKm": 5,
   "markers": []
 }

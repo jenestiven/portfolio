@@ -41,5 +41,7 @@ export type Scene = {
     bearing: number
   }
   duration?: number
+  /** Radio en km alrededor de camera.center para la detección de escena activa. */
+  radiusKm: number
   markers: Marker[]
 }

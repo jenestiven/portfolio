@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
-import scrollama from 'scrollama'
+import distance from '@turf/distance'
+import { point } from '@turf/helpers'
 import { initMap } from '../../lib/map/initMap'
-import { SceneManager } from '../../lib/map/SceneManager'
 import type { Scene } from '../../types'
 import MarkerLayer from './MarkerLayer'
 import ProjectPanel from './ProjectPanel'
 import SceneOverlay from './SceneOverlay'
+import TourControl from './TourControl'
 
 type Props = {
   scenes: Scene[]
@@ -17,13 +18,17 @@ const NO_MARKERS: Scene['markers'] = []
 
 export default function MapView({ scenes }: Props) {
   /**
-   * Las escenas se leen desde un ref para que el efecto corra una sola vez:
-   * el mapa y el scroller se montan al inicio y no se reinicializan aunque
+   * Las escenas se leen desde un ref para que el efecto del mapa corra una
+   * sola vez: la instancia se monta al inicio y no se reinicializa aunque
    * Astro vuelva a renderizar la isla con un array nuevo.
    */
   const scenesRef = useRef(scenes)
   scenesRef.current = scenes
 
+  /**
+   * La escena activa la decide la posición de la cámara, no el scroll: se
+   * recalcula en cada 'moveend' por distancia al centro de cada ciudad.
+   */
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
   /**
    * Se publica el mapa como estado solo después del 'load' para que los hijos
@@ -34,39 +39,36 @@ export default function MapView({ scenes }: Props) {
 
   useEffect(() => {
     const map = initMap('map')
-    const scroller = scrollama()
-    const handleResize = () => scroller.resize()
 
-    map.on('load', () => {
-      const sceneManager = new SceneManager(map)
+    map.on('load', () => setMap(map))
 
-      // Los <section> los renderiza ScrollScenes.tsx (HTML estático de Astro),
-      // así que ya están en el DOM cuando hidrata esta isla.
-      scroller
-        .setup({ step: '[data-scene-id]', offset: 0.5 })
-        .onStepEnter(({ element }) => {
-          const scene = scenesRef.current.find((s) => s.id === element.dataset.sceneId)
-          if (!scene) return
-          sceneManager.goTo(scene)
-          setActiveSceneId(scene.id)
-        })
+    const handleMoveEnd = () => {
+      const { lng, lat } = map.getCenter()
+      const cameraCenter = point([lng, lat])
+      const match = scenesRef.current.find(
+        (scene) =>
+          distance(cameraCenter, point(scene.camera.center), { units: 'kilometers' }) <
+          scene.radiusKm
+      )
 
-      window.addEventListener('resize', handleResize)
-      setMap(map)
-    })
+      // Sin coincidencia se conserva la última escena conocida: en tránsito
+      // entre ciudades el overlay no debe parpadear a vacío.
+      if (match) setActiveSceneId(match.id)
+    }
+
+    map.on('moveend', handleMoveEnd)
 
     return () => {
-      window.removeEventListener('resize', handleResize)
-      scroller.destroy()
       setMap(null)
+      map.off('moveend', handleMoveEnd)
       map.remove()
     }
   }, [])
 
   const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null
   /**
-   * El marker se resuelve contra la escena activa: si el usuario scrollea a
-   * otra escena, el panel se cierra solo porque el id deja de encontrarse.
+   * El marker se resuelve contra la escena activa: si cambia la escena, el
+   * panel se cierra solo porque el id deja de encontrarse.
    */
   const selectedMarker =
     activeScene?.markers.find((marker) => marker.id === selectedMarkerId) ?? null
@@ -86,6 +88,7 @@ export default function MapView({ scenes }: Props) {
             marker={selectedMarker}
             onClose={() => setSelectedMarkerId(null)}
           />
+          <TourControl map={map} scenes={scenes} />
         </>
       )}
       <SceneOverlay activeScene={activeScene} />
