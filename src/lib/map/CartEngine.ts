@@ -3,11 +3,13 @@ import type { Map } from 'mapbox-gl'
 import along from '@turf/along'
 import bearing from '@turf/bearing'
 import length from '@turf/length'
+import lineSliceAlong from '@turf/line-slice-along'
 import { lineString } from '@turf/helpers'
 
 /**
  * Motor de recorrido del "carrito": anima un trayecto por calles reales entre
- * dos puntos de una misma ciudad, con la cámara siguiendo el avance.
+ * dos puntos de una misma ciudad, dibujando la ruta (azul lo que falta, gris lo
+ * ya recorrido) con la cámara siguiendo el avance.
  *
  * Es deliberadamente agnóstico de React y de quién lo dispara: el sprint 11 lo
  * usa tanto desde el menú de proyectos como desde el clic directo en un marker.
@@ -33,6 +35,22 @@ const BEARING_LOOKAHEAD_KM = 0.015
 
 const DIRECTIONS_PROFILE = 'walking'
 
+/** Ruta por recorrer (azul) y ya recorrida (gris). Un id sirve de source y de layer. */
+const REMAINING_ID = 'route-remaining'
+const TRAVELED_ID = 'route-traveled'
+const REMAINING_COLOR = '#3B82F6'
+const TRAVELED_COLOR = '#9CA3AF'
+const ROUTE_WIDTH = 4
+
+const CAR_ICON_SIZE_PX = 36
+
+/**
+ * El SVG viene dibujado en perspectiva isométrica con el frente hacia la
+ * esquina inferior derecha (~120°). Este offset lo compensa para que un rumbo
+ * de 0° deje el carro apuntando hacia arriba en pantalla.
+ */
+const CAR_ICON_HEADING_OFFSET_DEG = -120
+
 type RouteLine = ReturnType<typeof lineString>
 type LngLat = [number, number]
 
@@ -41,20 +59,32 @@ type LngLat = [number, number]
  * destino entre recorridos, así el usuario ve dónde "dejó" el carrito.
  */
 let cartMarker: mapboxgl.Marker | null = null
+/** El <img> interno, que es el que rota; al contenedor lo posiciona Mapbox. */
+let cartIcon: HTMLElement | null = null
 
 /**
  * Identifica el recorrido en curso. Si llega un `driveTo` nuevo mientras otro
  * anima, el viejo ve que el id cambió y abandona el rAF sin pelear por la
- * cámara (su promesa igual resuelve, para no dejar colgado a quien lo esperaba).
+ * cámara ni por las layers (su promesa igual resuelve, para no dejar colgado a
+ * quien lo esperaba).
  */
 let currentDriveId = 0
 
 function createCartElement(): HTMLElement {
   const element = document.createElement('div')
-  // Placeholder visual: el diseño definitivo del carrito lo define Stitch.
-  element.className =
-    'flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg shadow-lg'
-  element.textContent = '🚗'
+  const icon = document.createElement('img')
+
+  icon.src = '/icons/car.svg'
+  icon.alt = ''
+  icon.style.width = `${CAR_ICON_SIZE_PX}px`
+  icon.style.height = `${CAR_ICON_SIZE_PX}px`
+  // El giro es sobre el propio eje del carro, no sobre una esquina.
+  icon.style.transformOrigin = 'center'
+  icon.style.display = 'block'
+
+  element.appendChild(icon)
+  cartIcon = icon
+
   return element
 }
 
@@ -69,10 +99,61 @@ function getCartMarker(map: Map, position: LngLat): mapboxgl.Marker {
   return cartMarker.addTo(map)
 }
 
+/**
+ * Orienta el ícono. Al rumbo se le descuenta el bearing de la cámara porque el
+ * mapa ya gira con el recorrido: lo que se aplica al <img> es el ángulo que
+ * queda en pantalla, no el rumbo absoluto.
+ */
+function pointCartTo(map: Map, headingDeg: number) {
+  if (!cartIcon) return
+
+  const screenAngle = headingDeg - map.getBearing() + CAR_ICON_HEADING_OFFSET_DEG
+  cartIcon.style.transform = `rotate(${screenAngle}deg)`
+}
+
 /** Quita el carrito del mapa (por si una escena necesita limpiarlo). */
 export function removeCart() {
   cartMarker?.remove()
   cartMarker = null
+  cartIcon = null
+}
+
+/** Línea degenerada: GeoJSON válido que no pinta nada (tramo de longitud cero). */
+function emptyLineAt(point: LngLat): RouteLine {
+  return lineString([point, point])
+}
+
+function setRouteData(map: Map, id: string, line: RouteLine) {
+  const source = map.getSource(id)
+  if (source && source.type === 'geojson') source.setData(line)
+}
+
+function addRouteLayers(map: Map, route: RouteLine) {
+  removeRouteLayers(map)
+
+  const start = route.geometry.coordinates[0] as LngLat
+
+  for (const [id, color, data] of [
+    [REMAINING_ID, REMAINING_COLOR, route],
+    [TRAVELED_ID, TRAVELED_COLOR, emptyLineAt(start)],
+  ] as const) {
+    map.addSource(id, { type: 'geojson', data })
+    map.addLayer({
+      id,
+      type: 'line',
+      source: id,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': color, 'line-width': ROUTE_WIDTH },
+    })
+  }
+}
+
+/** Deja el mapa limpio para el próximo viaje: sin restos de la ruta anterior. */
+function removeRouteLayers(map: Map) {
+  for (const id of [REMAINING_ID, TRAVELED_ID]) {
+    if (map.getLayer(id)) map.removeLayer(id)
+    if (map.getSource(id)) map.removeSource(id)
+  }
 }
 
 /**
@@ -102,7 +183,8 @@ async function fetchWalkingRoute(origin: LngLat, destination: LngLat): Promise<R
 
 /**
  * Lleva la cámara (y el carrito) de `origin` a `destination` siguiendo la ruta
- * peatonal real, o una línea recta si la Directions API no responde.
+ * peatonal real, o una línea recta si la Directions API no responde. Mientras
+ * viaja, la ruta se ve como una línea azul que se acorta y una gris que crece.
  *
  * La promesa resuelve cuando la animación termina — quien la espera puede
  * entonces abrir el panel del proyecto de destino.
@@ -130,6 +212,7 @@ export async function driveTo(map: Map, origin: LngLat, destination: LngLat): Pr
   }
 
   const marker = getCartMarker(map, pointAt(0))
+  addRouteLayers(map, route)
 
   return new Promise<void>((resolve) => {
     const startedAt = performance.now()
@@ -164,8 +247,23 @@ export async function driveTo(map: Map, origin: LngLat, destination: LngLat): Pr
         zoom: DRIVE_ZOOM,
         duration: 0,
       })
+      // Después del easeTo, para que el descuento use el bearing ya aplicado.
+      pointCartTo(map, lastBearing)
+
+      setRouteData(
+        map,
+        TRAVELED_ID,
+        traveledKm > 0 ? lineSliceAlong(route, 0, traveledKm) : emptyLineAt(current)
+      )
+      setRouteData(
+        map,
+        REMAINING_ID,
+        traveledKm < totalKm ? lineSliceAlong(route, traveledKm, totalKm) : emptyLineAt(current)
+      )
 
       if (progress >= 1) {
+        // Se limpia el mapa para el próximo viaje; el carrito queda estacionado.
+        removeRouteLayers(map)
         resolve()
         return
       }
