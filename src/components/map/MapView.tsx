@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
+import { driveTo } from '../../lib/map/CartEngine'
 import { initMap } from '../../lib/map/initMap'
 import { useGeoEntry } from '../../lib/map/useGeoEntry'
 import type { Scene } from '../../types'
@@ -42,6 +43,11 @@ const WELCOME_HOLD_MS = 3500
  * "arranco al montarme" sin saber nada del aterrizaje.
  */
 type EntryPhase = 'idle' | 'flying' | 'welcome' | 'done'
+
+/** Forma del gancho de consola que se publica solo en dev (ver efecto del mapa). */
+type CartEngineDevHook = {
+  driveTo: (origin: [number, number], destination: [number, number]) => Promise<void>
+}
 
 export default function MapView({ scenes }: Props) {
   /**
@@ -85,7 +91,17 @@ export default function MapView({ scenes }: Props) {
   useEffect(() => {
     const map = initMap('map')
 
-    map.on('load', () => setMap(map))
+    map.on('load', () => {
+      setMap(map)
+
+      // Gancho de prueba manual del CartEngine (sprint 10): en la consola,
+      // window.driveTo([lng, lat], [lng, lat]). El sprint 11 lo conecta al
+      // menú de proyectos y a los markers, y este bloque se retira.
+      if (import.meta.env.DEV) {
+        ;(window as unknown as CartEngineDevHook).driveTo = (origin, destination) =>
+          driveTo(map, origin, destination)
+      }
+    })
 
     const handleMoveEnd = () => {
       const { lng, lat } = map.getCenter()
