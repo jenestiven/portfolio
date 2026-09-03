@@ -3,7 +3,6 @@ import type { Map } from 'mapbox-gl'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
 import { driveTo } from '../../lib/map/CartEngine'
-import { resolveGeoEntry, type GeoEntry } from '../../lib/map/geoEntry'
 import { initMap } from '../../lib/map/initMap'
 import type { Scene } from '../../types'
 import HeroSection from '../hero/HeroSection'
@@ -27,11 +26,14 @@ const NO_MARKERS: Scene['markers'] = []
  */
 const TOUR_ORDER = ['cali', 'london', 'tokyo'] as const
 
-/** Escena contra la que se mide si el usuario está "en casa" (ver geoEntry.ts). */
-const HOME_SCENE_ID = 'cali'
+/**
+ * Punto de aterrizaje de la entrada: Universidad del Valle. Es fijo — no se
+ * pide ubicación al usuario en ningún momento.
+ */
+const LANDING_POINT: [number, number] = [-76.53445, 3.37501]
 
-/** Encuadre del aterrizaje: calle a la vista, cámara inclinada. */
-const LANDING_ZOOM = 15
+/** Encuadre del aterrizaje: campus a la vista, cámara inclinada. */
+const LANDING_ZOOM = 16
 const LANDING_PITCH = 60
 const LANDING_BEARING = 0
 /** Vuelo cinematográfico desde la vista de globo con la que carga el mapa. */
@@ -76,8 +78,6 @@ export default function MapView({ scenes }: Props) {
   const [map, setMap] = useState<Map | null>(null)
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
   const [entryPhase, setEntryPhase] = useState<EntryPhase>('idle')
-  /** Se resuelve al pulsar el CTA, no al montar (ver `startJourney`). */
-  const [geoEntry, setGeoEntry] = useState<GeoEntry | null>(null)
   /** El Hero se desmonta cuando termina su fade, no al hacer clic. */
   const [heroDismissed, setHeroDismissed] = useState(false)
 
@@ -109,15 +109,6 @@ export default function MapView({ scenes }: Props) {
       ),
     [scenes]
   )
-
-  /**
-   * El centro de "casa" se lee desde un ref: `startJourney` corre una sola vez
-   * por sesión y solo le importa el valor vigente en ese momento, no el de
-   * cada render.
-   */
-  const homeCenterRef = useRef<[number, number] | null>(null)
-  homeCenterRef.current =
-    scenes.find((scene) => scene.id === HOME_SCENE_ID)?.camera.center ?? null
 
   /** Timers de la secuencia de entrada, para poder cancelarlos al desmontar. */
   const entryTimersRef = useRef<number[]>([])
@@ -155,24 +146,18 @@ export default function MapView({ scenes }: Props) {
   }, [])
 
   /**
-   * Secuencia de entrada: geolocalización → vuelo al punto de aterrizaje →
-   * saludo → tour. Ya no corre al montar: la dispara el CTA del Hero, así el
-   * prompt de permisos del navegador llega tras un gesto del usuario y el mapa
-   * puede quedarse en la vista de planeta mientras tanto.
+   * Secuencia de entrada: vuelo a Univalle → saludo → tour. No corre al
+   * montar: la dispara el CTA del Hero, así el mapa se queda en la vista de
+   * planeta hasta que el usuario decide entrar.
    */
-  const startJourney = useCallback(async () => {
+  const startJourney = useCallback(() => {
     if (!map || journeyStartedRef.current) return
     journeyStartedRef.current = true
 
     setEntryPhase('flying')
 
-    // Puede tardar hasta el timeout del GPS; mientras tanto el mapa sigue en
-    // la vista de planeta y el Hero termina su fade.
-    const entry = await resolveGeoEntry(homeCenterRef.current)
-    setGeoEntry(entry)
-
     map.flyTo({
-      center: entry.landingPoint,
+      center: LANDING_POINT,
       zoom: LANDING_ZOOM,
       pitch: LANDING_PITCH,
       bearing: LANDING_BEARING,
@@ -286,9 +271,7 @@ export default function MapView({ scenes }: Props) {
           disabled={!map}
         />
       )}
-      {entryPhase === 'welcome' && geoEntry && (
-        <WelcomeOverlay usedRealLocation={geoEntry.usedRealLocation} />
-      )}
+      {entryPhase === 'welcome' && <WelcomeOverlay />}
       {/* Ambos overlays comparten esquina: el de escena espera a que pase el saludo. */}
       <SceneOverlay activeScene={entryPhase === 'done' ? activeScene : null} />
       {entryPhase === 'done' && (
