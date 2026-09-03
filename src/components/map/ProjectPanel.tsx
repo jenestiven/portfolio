@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Map } from 'mapbox-gl'
-import type { GeospatialDetail, Marker, SoftwareDetail } from '../../types'
+import type { GeospatialDetail, Marker, ProfileDetail, SoftwareDetail } from '../../types'
 
 type Props = {
   /** Instancia única de Mapbox, ya con el estilo cargado. */
@@ -8,6 +8,13 @@ type Props = {
   /** Marker seleccionado, o null si no hay panel abierto. */
   marker: Marker | null
   onClose: () => void
+}
+
+/** Etiqueta del encabezado según el tipo de contenido del marcador. */
+const KIND_LABELS: Record<Marker['detail']['kind'], string> = {
+  software: 'Software',
+  geospatial: 'Geoespacial',
+  profile: 'Presentación'
 }
 
 /**
@@ -56,19 +63,40 @@ function PanelContent({ map, marker, onClose }: Props & { marker: Marker }) {
         <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10">
           <header className="pr-12">
             <span className="text-xs tracking-[0.2em] text-white/40 uppercase">
-              {marker.detail.kind === 'software' ? 'Software' : 'Geoespacial'}
+              {KIND_LABELS[marker.detail.kind]}
             </span>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{marker.title}</h2>
           </header>
 
-          {marker.detail.kind === 'software' ? (
-            <SoftwareBody detail={marker.detail} />
-          ) : (
+          {marker.detail.kind === 'software' && <SoftwareBody detail={marker.detail} />}
+          {marker.detail.kind === 'geospatial' && (
             <GeospatialBody map={map} markerId={marker.id} detail={marker.detail} title={marker.title} />
           )}
+          {marker.detail.kind === 'profile' && <ProfileBody detail={marker.detail} />}
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Badges de tecnologías. Lo comparten el stack de los proyectos de software
+ * y las `skills` del marcador de perfil: un solo lugar donde vive el estilo.
+ */
+function TagBadges({ items }: { items: string[] }) {
+  if (items.length === 0) return null
+
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <li
+          key={item}
+          className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80"
+        >
+          {item}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -100,18 +128,7 @@ function SoftwareBody({ detail }: { detail: SoftwareDetail }) {
 
       <p className="text-sm leading-relaxed text-white/80 sm:text-base">{detail.description}</p>
 
-      {detail.stack.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
-          {detail.stack.map((tech) => (
-            <li
-              key={tech}
-              className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80"
-            >
-              {tech}
-            </li>
-          ))}
-        </ul>
-      )}
+      <TagBadges items={detail.stack} />
 
       {detail.link && (
         <a
@@ -217,6 +234,48 @@ function GeospatialBody({ map, markerId, title, detail }: GeospatialBodyProps) {
           />
         </label>
       )}
+    </>
+  )
+}
+
+/**
+ * Marcadores de presentación (escena Cali). Dos formas según el `subtype`:
+ * 'skills' muestra las tecnologías como badges — los mismos de un proyecto de
+ * software — y el resto ('education', 'about', 'interests') muestra la imagen
+ * grande con el texto debajo.
+ */
+function ProfileBody({ detail }: { detail: ProfileDetail }) {
+  // Las fotos viven en /public y llegan en el sprint de contenido: hasta
+  // entonces se cae a un bloque neutro en vez del ícono de imagen rota.
+  const [imageFailed, setImageFailed] = useState(false)
+  const isSkills = detail.subtype === 'skills'
+
+  return (
+    <>
+      {imageFailed ? (
+        <div
+          className={`flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm text-white/50 ${
+            isSkills ? 'aspect-[16/6]' : 'aspect-[4/3]'
+          }`}
+        >
+          Imagen próximamente
+        </div>
+      ) : (
+        <img
+          src={detail.previewImage}
+          alt={detail.title}
+          onError={() => setImageFailed(true)}
+          className={`w-full rounded-xl border border-white/10 bg-white/5 object-cover ${
+            isSkills ? 'aspect-[16/6]' : 'aspect-[4/3]'
+          }`}
+        />
+      )}
+
+      <p className="text-sm leading-relaxed whitespace-pre-line text-white/80 sm:text-base">
+        {detail.body}
+      </p>
+
+      {isSkills && <TagBadges items={detail.skills ?? []} />}
     </>
   )
 }

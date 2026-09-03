@@ -11,5 +11,72 @@
   },
   "duration": 8000,
   "radiusKm": 5,
-  "markers": []
+  "markers": [
+    {
+      "id": "educacion",
+      "coord": [-76.53445, 3.37501],
+      "title": "Educación",
+      "type": "profile",
+      "detail": {
+        "kind": "profile",
+        "subtype": "education",
+        "previewImage": "/images/univalle.jpg",
+        "title": "Educación",
+        "body": "Placeholder — formación académica. Universidad del Valle, sede Meléndez: pregrado y la ruta que me llevó de la topografía y la geomática al desarrollo de software. Se reemplaza con el texto real en el sprint de contenido."
+      }
+    },
+    {
+      "id": "acerca-de-mi",
+      "coord": [-76.53854, 3.44741],
+      "title": "Acerca de mí",
+      "type": "profile",
+      "detail": {
+        "kind": "profile",
+        "subtype": "about",
+        "previewImage": "/images/jhon.jpg",
+        "title": "Acerca de mí",
+        "body": "Placeholder — bio personal. Quién soy, de dónde vengo y cómo trabajo: desarrollador GIS caleño, con un pie en el dato geoespacial y el otro en el producto. Se reemplaza con el texto real en el sprint de contenido."
+      }
+    },
+    {
+      "id": "intereses",
+      "coord": [-76.54108, 3.42989],
+      "title": "Intereses personales",
+      "type": "profile",
+      "detail": {
+        "kind": "profile",
+        "subtype": "interests",
+        "previewImage": "/images/interests.jpg",
+        "title": "Intereses personales",
+        "body": "Placeholder — intereses fuera del trabajo. Fútbol y deporte, el Pascual Guerrero como punto de encuentro, y lo que hago cuando no estoy frente a un mapa. Se reemplaza con el texto real en el sprint de contenido."
+      }
+    },
+    {
+      "id": "tecnologias",
+      "coord": [-76.529, 3.459],
+      "title": "Tecnologías que domino",
+      "type": "profile",
+      "detail": {
+        "kind": "profile",
+        "subtype": "skills",
+        "previewImage": "/images/tech.jpg",
+        "title": "Tecnologías que domino",
+        "body": "Placeholder — el stack con el que trabajo a diario, entre desarrollo web y análisis geoespacial.",
+        "skills": [
+          "TypeScript",
+          "React",
+          "Astro",
+          "Node.js",
+          "Python",
+          "PostgreSQL",
+          "PostGIS",
+          "Mapbox GL JS",
+          "QGIS",
+          "ArcGIS",
+          "GDAL",
+          "Docker"
+        ]
+      }
+    }
+  ]
 }

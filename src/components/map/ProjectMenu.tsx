@@ -16,8 +16,9 @@ type Props = {
  * Menú flotante con los proyectos de la ciudad actual.
  *
  * No sabe qué ciudades tienen proyectos: se muestra cuando la escena activa
- * trae markers y se esconde cuando no (hoy, Londres y Tokio sí; Cali no). Una
- * ciudad nueva con proyectos lo hereda sin tocar este componente.
+ * trae markers y se esconde cuando no. Las tres ciudades del tour los tienen
+ * — Cali con los marcadores de presentación, Londres y Tokio con los
+ * laborales — y una ciudad nueva lo hereda sin tocar este componente.
  */
 export default function ProjectMenu({ scene, onSelectProject, cartAtMarkerId = null }: Props) {
   if (!scene || scene.markers.length === 0) return null

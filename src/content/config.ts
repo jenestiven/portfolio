@@ -29,12 +29,27 @@ const geospatialDetailSchema = z.object({
     .optional(),
 })
 
+const profileDetailSchema = z.object({
+  kind: z.literal('profile'),
+  subtype: z.enum(['education', 'about', 'interests', 'skills']),
+  /** Imagen de la vista previa del popup y del panel. */
+  previewImage: z.string(),
+  title: z.string(),
+  body: z.string(),
+  /** Solo para subtype 'skills': badges de tecnologías. */
+  skills: z.array(z.string()).optional(),
+})
+
 const markerSchema = z.object({
   id: z.string(),
   coord: z.tuple([z.number(), z.number()]),
   title: z.string(),
-  type: z.enum(['software', 'geospatial']),
-  detail: z.discriminatedUnion('kind', [softwareDetailSchema, geospatialDetailSchema]),
+  type: z.enum(['software', 'geospatial', 'profile']),
+  detail: z.discriminatedUnion('kind', [
+    softwareDetailSchema,
+    geospatialDetailSchema,
+    profileDetailSchema,
+  ]),
 })
 
 const scenes = defineCollection({

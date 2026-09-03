@@ -20,13 +20,25 @@ export type GeospatialDetail = {
   }
 }
 
-export type ProjectDetail = SoftwareDetail | GeospatialDetail
+export type ProfileDetail = {
+  kind: 'profile'
+  subtype: 'education' | 'about' | 'interests' | 'skills'
+  /** Imagen de la vista previa del popup y del panel. */
+  previewImage: string
+  title: string
+  /** Contenido del panel completo. */
+  body: string
+  /** Solo para subtype 'skills': badges de tecnologías. */
+  skills?: string[]
+}
+
+export type ProjectDetail = SoftwareDetail | GeospatialDetail | ProfileDetail
 
 export type Marker = {
   id: string
   coord: [number, number]
   title: string
-  type: 'software' | 'geospatial'
+  type: 'software' | 'geospatial' | 'profile'
   detail: ProjectDetail
 }
 
