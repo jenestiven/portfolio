@@ -45,11 +45,20 @@ const ROUTE_WIDTH = 8
 const CAR_ICON_SIZE_PX = 64
 
 /**
- * El SVG viene dibujado en perspectiva isométrica con el frente hacia la
- * esquina inferior derecha (~120°). Este offset lo compensa para que un rumbo
- * de 0° deje el carro apuntando hacia arriba en pantalla.
+ * El carrito tiene dos caras: cenital mientras rueda (rota frame a frame con el
+ * rumbo) y 3/4 cuando queda estacionado en el destino (orientación fija, la que
+ * trae el propio SVG).
+ */
+const CAR_ICON_DRIVING = '/icons/car-top.svg'
+const CAR_ICON_PARKED = '/icons/car-parked.svg'
+
+/**
+ * Corrección de orientación del ícono cenital: cuánto hay que girarlo para que
+ * un rumbo de 0° lo deje apuntando hacia arriba en pantalla.
  */
 const CAR_ICON_HEADING_OFFSET_DEG = 0
+
+type CartMode = 'driving' | 'parked'
 
 type RouteLine = ReturnType<typeof lineString>
 type LngLat = [number, number]
@@ -60,7 +69,9 @@ type LngLat = [number, number]
  */
 let cartMarker: mapboxgl.Marker | null = null
 /** El <img> interno, que es el que rota; al contenedor lo posiciona Mapbox. */
-let cartIcon: HTMLElement | null = null
+let cartIcon: HTMLImageElement | null = null
+/** Cara que muestra el ícono ahora mismo, para no reasignar el mismo src. */
+let cartMode: CartMode | null = null
 
 /**
  * Identifica el recorrido en curso. Si llega un `driveTo` nuevo mientras otro
@@ -74,7 +85,7 @@ function createCartElement(): HTMLElement {
   const element = document.createElement('div')
   const icon = document.createElement('img')
 
-  icon.src = '/icons/car.svg'
+  icon.src = CAR_ICON_DRIVING
   icon.alt = ''
   icon.style.width = `${CAR_ICON_SIZE_PX}px`
   icon.style.height = `${CAR_ICON_SIZE_PX}px`
@@ -84,6 +95,7 @@ function createCartElement(): HTMLElement {
 
   element.appendChild(icon)
   cartIcon = icon
+  cartMode = 'driving'
 
   return element
 }
@@ -97,6 +109,19 @@ function getCartMarker(map: Map, position: LngLat): mapboxgl.Marker {
 
   // addTo es idempotente sobre el mismo mapa: reubica el marker si ya estaba.
   return cartMarker.addTo(map)
+}
+
+/**
+ * Cambia la cara del carrito. Al estacionar se descarta la rotación del último
+ * tramo: el SVG 3/4 ya viene con su propia orientación y heredar ese ángulo lo
+ * dejaría torcido en el destino.
+ */
+function setCartMode(mode: CartMode) {
+  if (!cartIcon || cartMode === mode) return
+
+  cartMode = mode
+  cartIcon.src = mode === 'driving' ? CAR_ICON_DRIVING : CAR_ICON_PARKED
+  if (mode === 'parked') cartIcon.style.transform = 'rotate(0deg)'
 }
 
 /**
@@ -116,6 +141,7 @@ export function removeCart() {
   cartMarker?.remove()
   cartMarker = null
   cartIcon = null
+  cartMode = null
 }
 
 /** Línea degenerada: GeoJSON válido que no pinta nada (tramo de longitud cero). */
@@ -207,11 +233,14 @@ export async function driveTo(map: Map, origin: LngLat, destination: LngLat): Pr
   // recorrer, solo se planta el carrito y se encuadra el destino.
   if (totalKm === 0) {
     getCartMarker(map, destination)
+    setCartMode('parked')
     map.easeTo({ center: destination, pitch: DRIVE_PITCH, zoom: DRIVE_ZOOM, duration: 0 })
     return
   }
 
   const marker = getCartMarker(map, pointAt(0))
+  // Arranca (o retoma, si venía estacionado de un viaje anterior) la cara cenital.
+  setCartMode('driving')
   addRouteLayers(map, route)
 
   return new Promise<void>((resolve) => {
@@ -264,6 +293,7 @@ export async function driveTo(map: Map, origin: LngLat, destination: LngLat): Pr
       if (progress >= 1) {
         // Se limpia el mapa para el próximo viaje; el carrito queda estacionado.
         removeRouteLayers(map)
+        setCartMode('parked')
         resolve()
         return
       }
