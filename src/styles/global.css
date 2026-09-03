@@ -15,3 +15,35 @@
     }
   }
 }
+
+/*
+ * Popup de los marcadores. El contenedor y el tip los pinta mapbox-gl.css con
+ * fondo blanco fijo, así que es lo único que no se puede resolver con clases
+ * de Tailwind desde dentro del popup.
+ */
+.portfolio-marker-popup .mapboxgl-popup-content {
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.75rem;
+  background: #0a0a0a;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.45);
+}
+
+.portfolio-marker-popup .mapboxgl-popup-tip {
+  border-top-color: #0a0a0a;
+  border-bottom-color: #0a0a0a;
+  border-left-color: #0a0a0a;
+  border-right-color: #0a0a0a;
+}
+
+.portfolio-marker-popup .mapboxgl-popup-close-button {
+  padding: 0 0.35rem;
+  color: rgb(255 255 255 / 0.55);
+  font-size: 1.1rem;
+  background: transparent;
+}
+
+.portfolio-marker-popup .mapboxgl-popup-close-button:hover {
+  color: #ffffff;
+  background: transparent;
+}

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import type { GeospatialDetail, Marker, SoftwareDetail } from '../../types'
-import { MARKER_LAYER_ID } from './MarkerLayer'
 
 type Props = {
   /** Instancia única de Mapbox, ya con el estilo cargado. */
@@ -152,8 +151,6 @@ function GeospatialBody({ map, markerId, title, detail }: GeospatialBodyProps) {
 
     const sourceId = `live-layer-${markerId}`
     const layerId = sourceId
-    // Se inserta debajo de los markers para que sigan siendo clicables.
-    const beforeId = map.getLayer(MARKER_LAYER_ID) ? MARKER_LAYER_ID : undefined
 
     if (liveLayer.layerType === 'raster') {
       map.addSource(sourceId, {
@@ -161,33 +158,27 @@ function GeospatialBody({ map, markerId, title, detail }: GeospatialBodyProps) {
         tiles: [liveLayer.sourceUrl],
         tileSize: 256
       })
-      map.addLayer(
-        {
-          id: layerId,
-          type: 'raster',
-          source: sourceId,
-          paint: { 'raster-opacity': 0.75 }
-        },
-        beforeId
-      )
+      map.addLayer({
+        id: layerId,
+        type: 'raster',
+        source: sourceId,
+        paint: { 'raster-opacity': 0.75 }
+      })
     } else {
       // El schema no lleva `source-layer`, así que una fuente vectorial de
       // teselas no se puede pintar de forma genérica: se trata el sourceUrl
       // como GeoJSON servido por URL (caso tesis Siloé).
       map.addSource(sourceId, { type: 'geojson', data: liveLayer.sourceUrl })
-      map.addLayer(
-        {
-          id: layerId,
-          type: 'fill',
-          source: sourceId,
-          paint: {
-            'fill-color': '#f97316',
-            'fill-opacity': 0.45,
-            'fill-outline-color': '#fdba74'
-          }
-        },
-        beforeId
-      )
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#f97316',
+          'fill-opacity': 0.45,
+          'fill-outline-color': '#fdba74'
+        }
+      })
     }
 
     return () => {

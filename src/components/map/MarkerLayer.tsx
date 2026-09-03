@@ -1,116 +1,155 @@
 import { useEffect, useRef } from 'react'
-import type { GeoJSONSource, Map, MapMouseEvent } from 'mapbox-gl'
+import mapboxgl from 'mapbox-gl'
+import type { Map } from 'mapbox-gl'
 import type { Marker } from '../../types'
 
-const SOURCE_ID = 'scene-markers'
-const LAYER_ID = 'scene-markers'
-
-/** Lo consume ProjectPanel para insertar sus capas por debajo de los markers. */
-export const MARKER_LAYER_ID = LAYER_ID
-
-/** Solo lo que la capa necesita del marker: la geometría y lo que va en properties. */
-type MarkerFeature = {
-  type: 'Feature'
-  geometry: { type: 'Point'; coordinates: [number, number] }
-  properties: { id: string; title: string; type: Marker['type'] }
+/**
+ * Color del pin por tipo de contenido. `profile` todavía no existe en el
+ * schema (llega con la escena de presentación de Cali), pero el color ya está
+ * previsto para que el marcador no dependa de un sprint posterior.
+ */
+const PIN_COLORS: Record<string, string> = {
+  software: '#38bdf8',
+  geospatial: '#f97316',
+  profile: '#a78bfa'
 }
 
-type MarkerCollection = {
-  type: 'FeatureCollection'
-  features: MarkerFeature[]
-}
+const PIN_FALLBACK_COLOR = '#71717a'
 
-function toFeatureCollection(markers: Marker[]): MarkerCollection {
-  return {
-    type: 'FeatureCollection',
-    features: markers.map((marker) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: marker.coord },
-      // El detail no viaja en properties: Mapbox serializa los valores y el
-      // panel de detalle lo resuelve desde la escena por id.
-      properties: { id: marker.id, title: marker.title, type: marker.type }
-    }))
+/** Clase con la que global.css oscurece el contenedor que pinta mapbox-gl. */
+const POPUP_CLASS = 'portfolio-marker-popup'
+
+/**
+ * Imagen de la vista previa. Los campos que la traen — `previewImage` en los
+ * marcadores de perfil, `images` en los de trabajo — entran al schema con el
+ * contenido de los sprints siguientes: hasta entonces se leen de forma
+ * tolerante y el popup se arma sin imagen en vez de romperse.
+ */
+function previewImageOf(detail: Marker['detail']): string | undefined {
+  const source = detail as { previewImage?: unknown; images?: unknown }
+  const kind: string = detail.kind
+
+  if (kind === 'profile') {
+    return typeof source.previewImage === 'string' && source.previewImage
+      ? source.previewImage
+      : undefined
   }
+
+  const first = Array.isArray(source.images) ? source.images[0] : undefined
+  return typeof first === 'string' && first ? first : undefined
+}
+
+/** Ícono del marcador: gota con el color del tipo y borde blanco. */
+function createPinElement(detail: Marker['detail'], title: string): HTMLElement {
+  const color = PIN_COLORS[detail.kind as string] ?? PIN_FALLBACK_COLOR
+
+  const element = document.createElement('div')
+  element.className = 'cursor-pointer drop-shadow-lg'
+  element.setAttribute('aria-label', title)
+  // SVG estático: el único dato que entra es el color, ya resuelto contra
+  // PIN_COLORS, así que no hay contenido del usuario en este markup.
+  element.innerHTML = `
+    <svg width="28" height="38" viewBox="0 0 24 32" aria-hidden="true">
+      <path
+        d="M12 1c-6.1 0-11 4.9-11 11 0 8.2 11 19 11 19s11-10.8 11-19c0-6.1-4.9-11-11-11z"
+        fill="${color}"
+        stroke="#ffffff"
+        stroke-width="1.8"
+      />
+      <circle cx="12" cy="12" r="4" fill="#ffffff" />
+    </svg>
+  `
+
+  return element
+}
+
+/**
+ * Contenido del popup. Se arma con nodos DOM (no innerHTML) porque el título
+ * y la ruta de la imagen vienen del contenido de las escenas.
+ */
+function createPopupContent(marker: Marker, onSeeMore: () => void): HTMLElement {
+  const container = document.createElement('div')
+  container.className = 'flex w-56 flex-col gap-3 p-3 text-white'
+
+  const image = previewImageOf(marker.detail)
+  if (image) {
+    const img = document.createElement('img')
+    img.src = image
+    img.alt = marker.title
+    img.className = 'h-24 w-full rounded-lg border border-white/10 object-cover'
+    // La imagen puede no estar subida todavía: si falla, el popup se queda
+    // solo con el título y el botón en vez de mostrar el ícono roto.
+    img.addEventListener('error', () => img.remove())
+    container.append(img)
+  }
+
+  const title = document.createElement('h3')
+  title.className = 'pr-4 text-sm leading-snug font-semibold'
+  title.textContent = marker.title
+  container.append(title)
+
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.className =
+    'w-full rounded-full bg-white px-4 py-1.5 text-xs font-medium text-neutral-950 transition hover:bg-white/85'
+  button.textContent = 'Ver más'
+  button.addEventListener('click', onSeeMore)
+  container.append(button)
+
+  return container
 }
 
 type Props = {
   /** Instancia única de Mapbox, ya con el estilo cargado. */
   map: Map
   markers: Marker[]
+  /** Viaje en carrito + apertura del panel. Solo lo dispara "Ver más". */
   onMarkerClick: (markerId: string) => void
 }
 
 export default function MarkerLayer({ map, markers, onMarkerClick }: Props) {
   /**
-   * El callback se lee desde un ref para que los listeners se registren una
-   * sola vez: un cambio de identidad de onMarkerClick no debe re-suscribir.
+   * El callback se lee desde un ref para que los listeners de los popups no
+   * haya que recrearlos: un cambio de identidad de onMarkerClick no debe
+   * reconstruir los marcadores.
    */
   const onMarkerClickRef = useRef(onMarkerClick)
   onMarkerClickRef.current = onMarkerClick
 
-  // Alta de la capa y de los listeners: corre solo al montar (o si cambia el mapa).
+  // Los marcadores son elementos DOM, no una capa del estilo: se crean por
+  // escena y se retiran al cambiar de escena o al desmontar.
   useEffect(() => {
-    if (!map.getSource(SOURCE_ID)) {
-      map.addSource(SOURCE_ID, {
-        type: 'geojson',
-        data: toFeatureCollection([])
+    const instances = markers.map((marker) => {
+      const popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: false,
+        offset: 34,
+        maxWidth: 'none',
+        className: POPUP_CLASS
       })
-    }
 
-    if (!map.getLayer(LAYER_ID)) {
-      map.addLayer({
-        id: LAYER_ID,
-        type: 'circle',
-        source: SOURCE_ID,
-        paint: {
-          'circle-radius': 7,
-          'circle-color': [
-            'case',
-            ['==', ['get', 'type'], 'software'],
-            '#3f3f46',
-            ['==', ['get', 'type'], 'geospatial'],
-            '#a8a29e',
-            '#71717a'
-          ],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
+      const instance = new mapboxgl.Marker({
+        element: createPinElement(marker.detail, marker.title),
+        anchor: 'bottom'
       })
-    }
+        .setLngLat(marker.coord)
+        .setPopup(popup)
+        .addTo(map)
 
-    const handleClick = (event: MapMouseEvent) => {
-      const feature = event.features?.[0]
-      const markerId = feature?.properties?.id
-      if (typeof markerId === 'string') onMarkerClickRef.current(markerId)
-    }
+      popup.setDOMContent(
+        createPopupContent(marker, () => {
+          // El popup se retira antes del viaje: la cámara se mueve y el
+          // globo colgado del pin estorbaría el recorrido.
+          popup.remove()
+          onMarkerClickRef.current(marker.id)
+        })
+      )
 
-    const handleMouseEnter = () => {
-      map.getCanvas().style.cursor = 'pointer'
-    }
+      return instance
+    })
 
-    const handleMouseLeave = () => {
-      map.getCanvas().style.cursor = ''
-    }
-
-    map.on('click', LAYER_ID, handleClick)
-    map.on('mouseenter', LAYER_ID, handleMouseEnter)
-    map.on('mouseleave', LAYER_ID, handleMouseLeave)
-
-    return () => {
-      map.off('click', LAYER_ID, handleClick)
-      map.off('mouseenter', LAYER_ID, handleMouseEnter)
-      map.off('mouseleave', LAYER_ID, handleMouseLeave)
-
-      if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID)
-      if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID)
-    }
-  }, [map])
-
-  // Cambio de escena: se actualiza la data de la source, no se recrea la capa.
-  useEffect(() => {
-    const source = map.getSource<GeoJSONSource>(SOURCE_ID)
-    if (!source) return
-    source.setData(toFeatureCollection(markers))
+    // remove() se lleva también el popup asociado, abierto o no.
+    return () => instances.forEach((instance) => instance.remove())
   }, [map, markers])
 
   return null
