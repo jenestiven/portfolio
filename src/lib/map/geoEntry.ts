@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
 
@@ -31,10 +30,14 @@ const FALLBACK_ENTRY: GeoEntry = {
 }
 
 /**
- * Resuelve el punto de aterrizaje. Nunca rechaza: cualquier camino que no
- * termine en una posición cercana a Cali cae en el fallback.
+ * Resuelve el punto de aterrizaje. Se pide bajo demanda —lo dispara el clic
+ * del CTA del Hero, no el montaje del mapa—, así el prompt de permisos del
+ * navegador siempre llega después de un gesto del usuario.
+ *
+ * Nunca rechaza: cualquier camino que no termine en una posición cercana a
+ * Cali cae en el fallback.
  */
-function resolveGeoEntry(caliCenter: [number, number] | null): Promise<GeoEntry> {
+export function resolveGeoEntry(caliCenter: [number, number] | null): Promise<GeoEntry> {
   return new Promise((resolve) => {
     // Sin escena "cali" no hay contra qué medir la cercanía; sin API de
     // geolocalización no hay nada que pedir. En ambos casos, fallback directo.
@@ -68,34 +71,4 @@ function resolveGeoEntry(caliCenter: [number, number] | null): Promise<GeoEntry>
       resolve(FALLBACK_ENTRY)
     }
   })
-}
-
-/**
- * Pide la ubicación una sola vez por sesión y devuelve el punto de aterrizaje
- * de la entrada. Devuelve `null` mientras resuelve: quien lo consuma debe
- * esperar antes de mover la cámara.
- */
-export function useGeoEntry(caliCenter: [number, number] | null): GeoEntry | null {
-  const [entry, setEntry] = useState<GeoEntry | null>(null)
-
-  /**
-   * El centro se lee desde un ref para que el efecto corra una sola vez: solo
-   * importa el valor con el que arranca la sesión, no el de cada render.
-   */
-  const caliCenterRef = useRef(caliCenter)
-  caliCenterRef.current = caliCenter
-
-  useEffect(() => {
-    let cancelled = false
-
-    resolveGeoEntry(caliCenterRef.current).then((resolved) => {
-      if (!cancelled) setEntry(resolved)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  return entry
 }

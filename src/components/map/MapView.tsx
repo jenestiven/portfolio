@@ -3,9 +3,10 @@ import type { Map } from 'mapbox-gl'
 import distance from '@turf/distance'
 import { point } from '@turf/helpers'
 import { driveTo } from '../../lib/map/CartEngine'
+import { resolveGeoEntry, type GeoEntry } from '../../lib/map/geoEntry'
 import { initMap } from '../../lib/map/initMap'
-import { useGeoEntry } from '../../lib/map/useGeoEntry'
 import type { Scene } from '../../types'
+import HeroSection from '../hero/HeroSection'
 import MarkerLayer from './MarkerLayer'
 import ProjectMenu from './ProjectMenu'
 import ProjectPanel from './ProjectPanel'
@@ -26,7 +27,7 @@ const NO_MARKERS: Scene['markers'] = []
  */
 const TOUR_ORDER = ['cali', 'london', 'tokyo'] as const
 
-/** Escena contra la que se mide si el usuario está "en casa" (ver useGeoEntry). */
+/** Escena contra la que se mide si el usuario está "en casa" (ver geoEntry.ts). */
 const HOME_SCENE_ID = 'cali'
 
 /** Encuadre del aterrizaje: calle a la vista, cámara inclinada. */
@@ -39,9 +40,11 @@ const LANDING_FLY_MS = 5000
 const WELCOME_HOLD_MS = 3500
 
 /**
- * Etapas de la entrada. El tour no arranca hasta 'done': el `TourControl` se
- * monta al final de la secuencia, así su lógica interna sigue siendo
- * "arranco al montarme" sin saber nada del aterrizaje.
+ * Etapas de la entrada. En 'idle' el mapa se queda en la vista de planeta con
+ * el Hero encima: nada se mueve hasta que el usuario pulsa el CTA. El tour no
+ * arranca hasta 'done', porque el `TourControl` se monta al final de la
+ * secuencia y su lógica interna sigue siendo "arranco al montarme" sin saber
+ * nada del aterrizaje.
  */
 type EntryPhase = 'idle' | 'flying' | 'welcome' | 'done'
 
@@ -73,6 +76,10 @@ export default function MapView({ scenes }: Props) {
   const [map, setMap] = useState<Map | null>(null)
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
   const [entryPhase, setEntryPhase] = useState<EntryPhase>('idle')
+  /** Se resuelve al pulsar el CTA, no al montar (ver `startJourney`). */
+  const [geoEntry, setGeoEntry] = useState<GeoEntry | null>(null)
+  /** El Hero se desmonta cuando termina su fade, no al hacer clic. */
+  const [heroDismissed, setHeroDismissed] = useState(false)
 
   /** Carrito en movimiento: congela el tour igual que el panel abierto. */
   const [driving, setDriving] = useState(false)
@@ -103,9 +110,19 @@ export default function MapView({ scenes }: Props) {
     [scenes]
   )
 
-  const homeCenter =
+  /**
+   * El centro de "casa" se lee desde un ref: `startJourney` corre una sola vez
+   * por sesión y solo le importa el valor vigente en ese momento, no el de
+   * cada render.
+   */
+  const homeCenterRef = useRef<[number, number] | null>(null)
+  homeCenterRef.current =
     scenes.find((scene) => scene.id === HOME_SCENE_ID)?.camera.center ?? null
-  const geoEntry = useGeoEntry(homeCenter)
+
+  /** Timers de la secuencia de entrada, para poder cancelarlos al desmontar. */
+  const entryTimersRef = useRef<number[]>([])
+  /** El recorrido se arranca una sola vez, por más veces que se pulse el CTA. */
+  const journeyStartedRef = useRef(false)
 
   useEffect(() => {
     const map = initMap('map')
@@ -138,17 +155,24 @@ export default function MapView({ scenes }: Props) {
   }, [])
 
   /**
-   * Secuencia de entrada: vuelo al punto de aterrizaje → saludo → tour. Corre
-   * una sola vez, cuando el mapa ya cargó y la geolocalización ya resolvió
-   * (con posición real o con el fallback); `map` y `geoEntry` no vuelven a
-   * cambiar después de eso.
+   * Secuencia de entrada: geolocalización → vuelo al punto de aterrizaje →
+   * saludo → tour. Ya no corre al montar: la dispara el CTA del Hero, así el
+   * prompt de permisos del navegador llega tras un gesto del usuario y el mapa
+   * puede quedarse en la vista de planeta mientras tanto.
    */
-  useEffect(() => {
-    if (!map || !geoEntry) return
+  const startJourney = useCallback(async () => {
+    if (!map || journeyStartedRef.current) return
+    journeyStartedRef.current = true
 
     setEntryPhase('flying')
+
+    // Puede tardar hasta el timeout del GPS; mientras tanto el mapa sigue en
+    // la vista de planeta y el Hero termina su fade.
+    const entry = await resolveGeoEntry(homeCenterRef.current)
+    setGeoEntry(entry)
+
     map.flyTo({
-      center: geoEntry.landingPoint,
+      center: entry.landingPoint,
       zoom: LANDING_ZOOM,
       pitch: LANDING_PITCH,
       bearing: LANDING_BEARING,
@@ -156,17 +180,18 @@ export default function MapView({ scenes }: Props) {
       essential: true,
     })
 
-    const toWelcome = window.setTimeout(() => setEntryPhase('welcome'), LANDING_FLY_MS)
-    const toTour = window.setTimeout(
-      () => setEntryPhase('done'),
-      LANDING_FLY_MS + WELCOME_HOLD_MS
+    entryTimersRef.current.push(
+      window.setTimeout(() => setEntryPhase('welcome'), LANDING_FLY_MS),
+      window.setTimeout(() => setEntryPhase('done'), LANDING_FLY_MS + WELCOME_HOLD_MS)
     )
+  }, [map])
 
-    return () => {
-      window.clearTimeout(toWelcome)
-      window.clearTimeout(toTour)
-    }
-  }, [map, geoEntry])
+  useEffect(
+    () => () => {
+      entryTimersRef.current.forEach(window.clearTimeout)
+    },
+    []
+  )
 
   const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null
 
@@ -253,6 +278,13 @@ export default function MapView({ scenes }: Props) {
             <TourControl map={map} scenes={tourScenes} interactionLock={interactionLock} />
           )}
         </>
+      )}
+      {!heroDismissed && (
+        <HeroSection
+          onStart={startJourney}
+          onDismissed={() => setHeroDismissed(true)}
+          disabled={!map}
+        />
       )}
       {entryPhase === 'welcome' && geoEntry && (
         <WelcomeOverlay usedRealLocation={geoEntry.usedRealLocation} />
