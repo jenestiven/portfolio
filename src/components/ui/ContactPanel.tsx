@@ -26,7 +26,7 @@ import ResponsiveModal from './ResponsiveModal'
  */
 
 /** Datos de contacto — placeholders hasta el sprint de contenido. */
-const EMAIL = 'contacto@ejemplo.com'
+const EMAIL = 'jhon.gonzalez.aricapa@gmail.com'
 
 type SocialIconName = 'linkedin' | 'github' | 'link'
 
@@ -42,8 +42,8 @@ type SocialLink = {
  * aquí — el grid y los íconos se adaptan solos.
  */
 const SOCIAL_LINKS: SocialLink[] = [
-  { label: 'LinkedIn', url: 'https://linkedin.com/in/placeholder', icon: 'linkedin' },
-  { label: 'GitHub', url: 'https://github.com/placeholder', icon: 'github' },
+  { label: 'LinkedIn', url: 'https://linkedin.com/in/jhon-aricapa', icon: 'linkedin' },
+  { label: 'GitHub', url: 'https://github.com/jenestiven', icon: 'github' },
 ]
 
 type CvLink = {

@@ -12,7 +12,7 @@ mapboxgl.accessToken = import.meta.env.PUBLIC_MAPBOX_TOKEN
 export const HERO_CAMERA = {
     center: [-76, 4] as [number, number],
     zoom: 3,
-    pitch: 40,
+    pitch: 70,
     bearing: 0,
 }
 

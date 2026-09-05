@@ -1,6 +1,7 @@
 {
   "id": "cali",
   "title": "Bienvenido a mi portafolio",
+  "section": "Acerca de mí",
   "city": "Cali",
   "description": "Explora mis proyectos y habilidades a través de un mapa interactivo.",
   "camera": {

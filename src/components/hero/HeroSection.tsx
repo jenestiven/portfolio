@@ -80,9 +80,7 @@ export default function HeroSection({ onStart, onDismissed, disabled = false }: 
       </div>
 
       <h1 className="mt-8 max-w-4xl text-4xl font-semibold leading-tight tracking-tight text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.8)] sm:text-6xl lg:text-7xl">
-        ¡Hola! Soy Jhon,
-        <br />
-        Desarrollador GIS.
+        ¡Hola! Soy <span className="text-blue-400">Jhon,</span> Desarrollador <span className="text-blue-400">GIS.</span>
       </h1>
 
       <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">

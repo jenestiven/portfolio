@@ -80,6 +80,7 @@ const scenes = defineCollection({
     id: z.string(),
     title: z.string(),
     /** Nombre corto de la ciudad, para el menú del tour. Cae a `title` si falta. */
+    section: z.string().optional(),
     city: z.string().optional(),
     description: z.string(),
     camera: cameraSchema,

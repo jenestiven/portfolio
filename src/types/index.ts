@@ -68,6 +68,7 @@ export type Scene = {
   id: string
   title: string
   /** Nombre corto de la ciudad, para el menú del tour. Cae a `title` si falta. */
+  section?: string
   city?: string
   description: string
   camera: {

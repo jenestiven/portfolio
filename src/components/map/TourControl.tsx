@@ -96,6 +96,7 @@ type Props = {
  * ciudades) también lo pasan a modo libre.
  */
 export default function TourControl({ map, scenes, interactionLock = false }: Props) {
+  console.log('TourControl render', { scenes, interactionLock })
   const [running, setRunning] = useState(false)
   /** Última parada a la que se voló, sea por el scheduler o a mano. */
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -341,11 +342,11 @@ export default function TourControl({ map, scenes, interactionLock = false }: Pr
           onClick={() => setMenuOpen((open) => !open)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-4 text-sm font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+          className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-4 text-sm sm:text-lg font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75 sm:pr-10"
         >
           <svg
             viewBox="0 0 24 24"
-            className="h-4 w-4"
+            className="h-5 w-5"
             fill="none"
             stroke="currentColor"
             strokeWidth={1.8}
@@ -354,14 +355,14 @@ export default function TourControl({ map, scenes, interactionLock = false }: Pr
             <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" strokeLinejoin="round" />
             <circle cx="12" cy="10" r="2.4" />
           </svg>
-          Ciudades
+          Portafolio de proyectos
         </button>
 
         {menuOpen && (
           <ul
             role="menu"
             aria-label="Ciudades del recorrido"
-            className="animate-scene-in absolute right-0 bottom-full mb-2 min-w-44 overflow-hidden rounded-2xl border border-white/10 bg-black/80 py-1 text-sm text-white shadow-xl backdrop-blur-md"
+            className="animate-scene-in absolute left-0 bottom-full mb-2 min-w-44 overflow-hidden rounded-2xl border border-white/10 bg-black/80 py-1 text-sm text-white shadow-xl backdrop-blur-md"
           >
             {scenes.map((scene, index) => (
               <li key={scene.id} role="none">
@@ -380,7 +381,7 @@ export default function TourControl({ map, scenes, interactionLock = false }: Pr
                       index === currentIndex ? 'bg-white' : 'bg-white/25'
                     }`}
                   />
-                  {scene.city ?? scene.title}
+                  {scene.city} • {scene.section}
                 </button>
               </li>
             ))}
@@ -412,12 +413,12 @@ export default function TourControl({ map, scenes, interactionLock = false }: Pr
         type="button"
         onClick={handleToggle}
         aria-pressed={running}
-        className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-5 text-sm font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+        className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-5 text-sm sm:text-lg font-medium text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
       >
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={`h-4 w-4 ${running ? 'animate-spin [animation-duration:6s]' : ''}`}
+          className={`h-5 w-5 ${running ? 'animate-spin [animation-duration:6s]' : ''}`}
         >
           <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
           <path d="M15.5 8.5 10.5 10.5 8.5 15.5 13.5 13.5Z" fill="currentColor" />

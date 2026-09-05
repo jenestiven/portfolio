@@ -34,7 +34,7 @@ export default function ProjectMenu({ scene, onSelectProject, cartAtMarkerId = n
   return (
     <nav
       aria-label={`Proyectos en ${scene.city ?? scene.title}`}
-      className="fixed top-6 right-6 z-20 w-60 sm:right-10"
+      className="fixed top-6 right-6 z-20 w-60 sm:w-80 sm:right-14"
     >
       {/*
         La key por scene.id remonta el bloque en cada cambio de ciudad, así la
@@ -44,14 +44,8 @@ export default function ProjectMenu({ scene, onSelectProject, cartAtMarkerId = n
         key={scene.id}
         className="animate-scene-in overflow-hidden rounded-2xl border border-white/10 bg-black/60 text-white shadow-lg backdrop-blur-md"
       >
-        {isWorkScene && (
-          <p className="border-b border-white/10 px-4 pt-4 pb-3 text-sm font-medium text-white/90">
-            Experiencia laboral
-          </p>
-        )}
-
-        <p className="px-4 pt-4 pb-2 text-xs tracking-[0.2em] text-white/40 uppercase">
-          Proyectos · {scene.city ?? scene.title}
+        <p className="ml-4 px-4 pt-4 pb-2 text-md sm:text-xl tracking-[0.2em] text-white/40 uppercase">
+          JHON GONZÁLEZ
         </p>
 
         <ul className="max-h-[50vh] overflow-y-auto pb-2">
@@ -64,13 +58,13 @@ export default function ProjectMenu({ scene, onSelectProject, cartAtMarkerId = n
                   type="button"
                   onClick={() => onSelectProject(marker.id)}
                   aria-current={isActive}
-                  className={`flex w-full items-start gap-2 px-4 py-2 text-left text-sm leading-snug transition hover:bg-white/10 ${
+                  className={`flex w-full items-start gap-2 px-4 py-2 text-left text-sm sm:text-lg leading-snug transition hover:bg-white/10 ${
                     isActive ? 'text-white' : 'text-white/70'
                   }`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                    className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${
                       isActive ? 'bg-white' : 'bg-white/25'
                     }`}
                   />

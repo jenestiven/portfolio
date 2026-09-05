@@ -1,6 +1,7 @@
 {
   "id": "tokyo",
   "title": "Desarrollo de Software",
+  "section": "Software",
   "city": "Tokio",
   "description": "Aplicaciones web y herramientas a medida, del prototipo al producto en producción.",
   "camera": {
