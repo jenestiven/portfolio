@@ -12,8 +12,8 @@ type Props = {
  *
  * Esquina superior izquierda a propósito: la superior derecha la ocupa
  * `ProjectMenu` y la inferior derecha `TourControl`. El z-index queda por
- * encima de ambos (z-20) pero por debajo del `ProjectPanel` (z-30), que es un
- * modal y sí debe taparlo mientras esté abierto.
+ * encima de ambos (z-20) pero por debajo de los modales de `ResponsiveModal`
+ * (z-50), que sí deben taparlo mientras estén abiertos.
  */
 export default function ContactButton({ onOpen, isOpen }: Props) {
   return (

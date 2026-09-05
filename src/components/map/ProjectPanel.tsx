@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import ImageCarousel from '../ui/ImageCarousel'
+import ResponsiveModal from '../ui/ResponsiveModal'
 import type {
   GeospatialDetail,
   Marker,
@@ -25,68 +26,53 @@ const KIND_LABELS: Record<Marker['detail']['kind'], string> = {
 }
 
 /**
- * El contenido vive en un componente aparte para poder montarlo con
- * `key={marker.id}`: así los hooks (toggle de capa, Escape) se reinician al
- * cambiar de proyecto y el panel no arrastra estado del marker anterior.
+ * El detalle de un proyecto dentro del `ResponsiveModal` compartido: modal
+ * centrado en desktop, drawer en móvil. El fondo, el botón de cierre, Escape y
+ * las transiciones viven allí — aquí solo queda el contenido.
  */
 export default function ProjectPanel({ map, marker, onClose }: Props) {
-  if (!marker) return null
+  // Se recuerda el último marker para que el contenido siga en pantalla
+  // mientras corre la animación de salida, ya que al cerrar `marker` es null.
+  const [lastMarker, setLastMarker] = useState(marker)
 
-  return <PanelContent key={marker.id} map={map} marker={marker} onClose={onClose} />
+  useEffect(() => {
+    if (marker) setLastMarker(marker)
+  }, [marker])
+
+  const shown = marker ?? lastMarker
+
+  return (
+    <ResponsiveModal isOpen={marker !== null} onClose={onClose} label={shown?.title}>
+      {/*
+       * `key` por marker: así los hooks del contenido (toggle de capa, estados
+       * de imagen) se reinician al cambiar de proyecto y el panel no arrastra
+       * estado del marcador anterior.
+       */}
+      {shown && <PanelContent key={shown.id} map={map} marker={shown} />}
+    </ResponsiveModal>
+  )
 }
 
-function PanelContent({ map, marker, onClose }: Props & { marker: Marker }) {
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
+function PanelContent({ map, marker }: { map: Map; marker: Marker }) {
   const detail = marker.detail
 
   return (
-    <div className="fixed inset-0 z-30 flex" role="dialog" aria-modal="true" aria-label={marker.title}>
-      {/* Fondo semi-opaco: cubre la pantalla y cierra al hacer clic fuera. */}
-      <button
-        type="button"
-        aria-label="Cerrar detalle"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/70 backdrop-blur-sm"
-      />
+    <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10">
+      <header className="pr-12">
+        <span className="text-xs tracking-[0.2em] text-white/40 uppercase">
+          {KIND_LABELS[detail.kind]}
+        </span>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{marker.title}</h2>
+        {detail.kind !== 'profile' && <WorkHeader detail={detail} />}
+      </header>
 
-      <div className="animate-scene-in relative ml-auto flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-white/10 bg-neutral-950 text-white shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar"
-          className="absolute top-4 right-4 z-10 rounded-full border border-white/15 bg-black/50 p-2 text-white/70 transition hover:bg-black/80 hover:text-white"
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-          </svg>
-        </button>
+      {detail.kind === 'software' && <SoftwareBody detail={detail} title={marker.title} />}
+      {detail.kind === 'geospatial' && (
+        <GeospatialBody map={map} markerId={marker.id} detail={detail} title={marker.title} />
+      )}
+      {detail.kind === 'profile' && <ProfileBody detail={detail} />}
 
-        <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10">
-          <header className="pr-12">
-            <span className="text-xs tracking-[0.2em] text-white/40 uppercase">
-              {KIND_LABELS[detail.kind]}
-            </span>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{marker.title}</h2>
-            {detail.kind !== 'profile' && <WorkHeader detail={detail} />}
-          </header>
-
-          {detail.kind === 'software' && <SoftwareBody detail={detail} title={marker.title} />}
-          {detail.kind === 'geospatial' && (
-            <GeospatialBody map={map} markerId={marker.id} detail={detail} title={marker.title} />
-          )}
-          {detail.kind === 'profile' && <ProfileBody detail={detail} />}
-
-          {detail.kind !== 'profile' && <WorkLinks detail={detail} />}
-        </div>
-      </div>
+      {detail.kind !== 'profile' && <WorkLinks detail={detail} />}
     </div>
   )
 }

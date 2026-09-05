@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ResponsiveModal from './ResponsiveModal'
 
 /**
  * ───────────────────────────────────────────────────────────────────────────
@@ -71,13 +72,18 @@ type Props = {
  * `ContactWidget` con la misma prop `isOpen` del sprint 12: ninguno de esos
  * dos componentes cambia.
  *
- * Mismo patrón que `ProjectPanel`: fondo semi-opaco que cierra al hacer clic
- * fuera, Escape para cerrar y un botón de cierre explícito.
+ * Usa el mismo `ResponsiveModal` que `ProjectPanel` — modal centrado en
+ * desktop, drawer en móvil — así que el fondo, el cierre (clic fuera, Escape,
+ * botón X) y las transiciones se definen en un solo lugar. `PanelContent` solo
+ * se monta con el modal abierto: la comprobación de los PDFs no corre al
+ * cargar la página.
  */
 export default function ContactPanel({ isOpen, onClose }: Props) {
-  if (!isOpen) return null
-
-  return <PanelContent onClose={onClose} />
+  return (
+    <ResponsiveModal isOpen={isOpen} onClose={onClose} label="Contacto">
+      <PanelContent />
+    </ResponsiveModal>
+  )
 }
 
 /** Estado de disponibilidad de un PDF mientras se comprueba. */
@@ -117,105 +123,61 @@ function useAssetAvailability(urls: string[]): Record<string, AssetStatus> {
   return statuses
 }
 
-function PanelContent({ onClose }: { onClose: () => void }) {
+function PanelContent() {
   const cvStatuses = useAssetAvailability(CV_URLS)
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Contacto"
-    >
-      {/* Fondo semi-opaco: cubre la pantalla y cierra al hacer clic fuera. */}
-      <button
-        type="button"
-        aria-label="Cerrar contacto"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/70 backdrop-blur-sm"
-      />
+    <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10">
+      <header className="pr-12">
+        <span className="text-xs tracking-[0.2em] text-white/40 uppercase">Contacto</span>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Hablemos</h2>
+      </header>
 
-      <div className="animate-scene-in relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-white shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar"
-          className="absolute top-4 right-4 z-10 rounded-full border border-white/15 bg-black/50 p-2 text-white/70 transition hover:bg-black/80 hover:text-white"
+      <a
+        href={`mailto:${EMAIL}`}
+        className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          aria-hidden="true"
         >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-          </svg>
-        </button>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="m3.5 7 8.5 6 8.5-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {EMAIL}
+      </a>
 
-        <div className="flex flex-col gap-6 px-6 py-8 sm:px-8">
-          <header className="pr-12">
-            <span className="text-xs tracking-[0.2em] text-white/40 uppercase">Contacto</span>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Hablemos</h2>
-          </header>
+      <section className="flex flex-col gap-3">
+        <h3 className="text-xs tracking-[0.2em] text-white/40 uppercase">Redes</h3>
+        <ul className="grid grid-cols-2 gap-3">
+          {SOCIAL_LINKS.map((social) => (
+            <li key={social.url}>
+              <a
+                href={social.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                <SocialIcon name={social.icon ?? 'link'} />
+                {social.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-          <a
-            href={`mailto:${EMAIL}`}
-            className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-4 w-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-              aria-hidden="true"
-            >
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="m3.5 7 8.5 6 8.5-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {EMAIL}
-          </a>
-
-          <section className="flex flex-col gap-3">
-            <h3 className="text-xs tracking-[0.2em] text-white/40 uppercase">Redes</h3>
-            <ul className="grid grid-cols-2 gap-3">
-              {SOCIAL_LINKS.map((social) => (
-                <li key={social.url}>
-                  <a
-                    href={social.url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-                  >
-                    <SocialIcon name={social.icon ?? 'link'} />
-                    {social.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <h3 className="text-xs tracking-[0.2em] text-white/40 uppercase">Hoja de vida</h3>
-            <div className="flex flex-wrap gap-3">
-              {CV_LINKS.map((cv) => (
-                <CvButton key={cv.url} cv={cv} status={cvStatuses[cv.url] ?? 'checking'} />
-              ))}
-            </div>
-          </section>
+      <section className="flex flex-col gap-3">
+        <h3 className="text-xs tracking-[0.2em] text-white/40 uppercase">Hoja de vida</h3>
+        <div className="flex flex-wrap gap-3">
+          {CV_LINKS.map((cv) => (
+            <CvButton key={cv.url} cv={cv} status={cvStatuses[cv.url] ?? 'checking'} />
+          ))}
         </div>
-      </div>
+      </section>
     </div>
   )
 }
