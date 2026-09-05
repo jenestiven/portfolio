@@ -1,15 +1,34 @@
-export type SoftwareDetail = {
-  kind: 'software'
+/**
+ * Campos comunes a los proyectos de experiencia laboral (Londres y Tokio).
+ * Es el equivalente a una tarjeta de experiencia de LinkedIn: cargo, empresa,
+ * ubicación y el material de apoyo (video y/o carrusel de imágenes).
+ */
+export type WorkDetailBase = {
+  /** Cargo desempeñado, ej. "Desarrollador Full-Stack". */
+  role: string
+  company: string
+  companyLocation: string
   description: string
-  /** Vacío o ausente = placeholder "próximamente" (caso CDA) */
+  /** Carrusel de imágenes. La primera se usa como preview en el popup. */
+  images?: string[]
+  /** Video de demo. Tiene prioridad sobre el carrusel si ambos existen. */
   videoUrl?: string
-  stack: string[]
-  link?: string
+  socialLinks?: {
+    linkedin?: string
+    github?: string
+    website?: string
+  }
+  /** Link a la demo desplegada, si existe. */
+  demoUrl?: string
 }
 
-export type GeospatialDetail = {
+export type SoftwareDetail = WorkDetailBase & {
+  kind: 'software'
+  stack: string[]
+}
+
+export type GeospatialDetail = WorkDetailBase & {
   kind: 'geospatial'
-  description: string
   /** Ruta a diagrama de metodología (SVG/PNG) */
   diagramAsset: string
   methodologyText: string
@@ -33,6 +52,9 @@ export type ProfileDetail = {
 }
 
 export type ProjectDetail = SoftwareDetail | GeospatialDetail | ProfileDetail
+
+/** Los dos kinds que comparten `WorkDetailBase`. */
+export type WorkDetail = SoftwareDetail | GeospatialDetail
 
 export type Marker = {
   id: string

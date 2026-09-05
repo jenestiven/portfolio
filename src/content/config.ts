@@ -8,17 +8,39 @@ const cameraSchema = z.object({
   bearing: z.number(),
 })
 
-const softwareDetailSchema = z.object({
-  kind: z.literal('software'),
+/**
+ * Campos comunes a los proyectos de experiencia laboral (Londres y Tokio):
+ * cargo, empresa, ubicación y el material de apoyo. Se fusiona con los campos
+ * propios de cada kind mediante `.extend()`.
+ */
+const workDetailBaseSchema = z.object({
+  /** Cargo desempeñado, ej. "Desarrollador Full-Stack". */
+  role: z.string(),
+  company: z.string(),
+  companyLocation: z.string(),
   description: z.string(),
+  /** Carrusel de imágenes. La primera se usa como preview en el popup. */
+  images: z.array(z.string()).optional(),
+  /** Video de demo. Tiene prioridad sobre el carrusel si ambos existen. */
   videoUrl: z.string().optional(),
-  stack: z.array(z.string()),
-  link: z.string().optional(),
+  socialLinks: z
+    .object({
+      linkedin: z.string().optional(),
+      github: z.string().optional(),
+      website: z.string().optional(),
+    })
+    .optional(),
+  /** Link a la demo desplegada, si existe. */
+  demoUrl: z.string().optional(),
 })
 
-const geospatialDetailSchema = z.object({
+const softwareDetailSchema = workDetailBaseSchema.extend({
+  kind: z.literal('software'),
+  stack: z.array(z.string()),
+})
+
+const geospatialDetailSchema = workDetailBaseSchema.extend({
   kind: z.literal('geospatial'),
-  description: z.string(),
   diagramAsset: z.string(),
   methodologyText: z.string(),
   liveLayer: z

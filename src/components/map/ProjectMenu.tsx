@@ -20,8 +20,16 @@ type Props = {
  * — Cali con los marcadores de presentación, Londres y Tokio con los
  * laborales — y una ciudad nueva lo hereda sin tocar este componente.
  */
+/**
+ * Ciudades que se presentan bajo el marco de "Experiencia laboral" (addendum
+ * v7 §D). Es solo copy: la lógica de selección de marcadores no cambia.
+ */
+const WORK_SCENE_IDS = new Set(['london', 'tokyo'])
+
 export default function ProjectMenu({ scene, onSelectProject, cartAtMarkerId = null }: Props) {
   if (!scene || scene.markers.length === 0) return null
+
+  const isWorkScene = WORK_SCENE_IDS.has(scene.id)
 
   return (
     <nav
@@ -36,6 +44,12 @@ export default function ProjectMenu({ scene, onSelectProject, cartAtMarkerId = n
         key={scene.id}
         className="animate-scene-in overflow-hidden rounded-2xl border border-white/10 bg-black/60 text-white shadow-lg backdrop-blur-md"
       >
+        {isWorkScene && (
+          <p className="border-b border-white/10 px-4 pt-4 pb-3 text-sm font-medium text-white/90">
+            Experiencia laboral
+          </p>
+        )}
+
         <p className="px-4 pt-4 pb-2 text-xs tracking-[0.2em] text-white/40 uppercase">
           Proyectos · {scene.city ?? scene.title}
         </p>

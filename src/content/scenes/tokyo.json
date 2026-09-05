@@ -4,7 +4,10 @@
   "city": "Tokio",
   "description": "Aplicaciones web y herramientas a medida, del prototipo al producto en producción.",
   "camera": {
-    "center": [139.7454, 35.6586],
+    "center": [
+      139.7454,
+      35.6586
+    ],
     "zoom": 16,
     "pitch": 60,
     "bearing": 0
@@ -14,36 +17,57 @@
   "markers": [
     {
       "id": "quesuda",
-      "coord": [139.7292, 35.6605],
+      "coord": [
+        139.7292,
+        35.6605
+      ],
       "title": "Quesuda",
       "type": "software",
       "detail": {
         "kind": "software",
+        "role": "Desarrollador Full-Stack",
+        "company": "Quesuda",
+        "companyLocation": "PENDIENTE — ubicación por confirmar",
         "description": "PENDIENTE — falta la descripción real del proyecto (qué resuelve, para quién y cuál fue mi rol).",
+        "images": [],
         "videoUrl": "/videos/quesuda.mp4",
         "stack": []
       }
     },
     {
       "id": "cliente-internacional",
-      "coord": [139.7486, 35.6575],
+      "coord": [
+        139.7486,
+        35.6575
+      ],
       "title": "Proyecto para cliente internacional",
       "type": "software",
       "detail": {
         "kind": "software",
+        "role": "Desarrollador",
+        "company": "Cliente confidencial",
+        "companyLocation": "Remoto — cliente internacional",
         "description": "PENDIENTE — falta la descripción real del proyecto y confirmar si el cliente puede nombrarse o se mantiene el título genérico.",
+        "images": [],
         "videoUrl": "",
         "stack": []
       }
     },
     {
       "id": "cda",
-      "coord": [139.7495, 35.6648],
+      "coord": [
+        139.7495,
+        35.6648
+      ],
       "title": "CDA",
       "type": "software",
       "detail": {
         "kind": "software",
-        "description": "PENDIENTE — falta la descripción real del proyecto. El video queda vacío a propósito: el panel muestra el placeholder \"Demo próximamente\" hasta que se grabe.",
+        "role": "Desarrollador",
+        "company": "CDA",
+        "companyLocation": "PENDIENTE — ubicación por confirmar",
+        "description": "PENDIENTE — falta la descripción real del proyecto. Sin video ni imágenes todavía: el panel omite la sección multimedia hasta que se grabe la demo.",
+        "images": [],
         "videoUrl": "",
         "stack": []
       }

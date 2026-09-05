@@ -20,23 +20,14 @@ const PIN_FALLBACK_COLOR = '#71717a'
 const POPUP_CLASS = 'portfolio-marker-popup'
 
 /**
- * Imagen de la vista previa. Los campos que la traen — `previewImage` en los
- * marcadores de perfil, `images` en los de trabajo — entran al schema con el
- * contenido de los sprints siguientes: hasta entonces se leen de forma
- * tolerante y el popup se arma sin imagen en vez de romperse.
+ * Imagen de la vista previa: `previewImage` en los marcadores de perfil y la
+ * primera del carrusel en los de trabajo. Las rutas llegan con el sprint de
+ * contenido, así que el popup se arma sin imagen cuando todavía no hay.
  */
 function previewImageOf(detail: Marker['detail']): string | undefined {
-  const source = detail as { previewImage?: unknown; images?: unknown }
-  const kind: string = detail.kind
+  if (detail.kind === 'profile') return detail.previewImage || undefined
 
-  if (kind === 'profile') {
-    return typeof source.previewImage === 'string' && source.previewImage
-      ? source.previewImage
-      : undefined
-  }
-
-  const first = Array.isArray(source.images) ? source.images[0] : undefined
-  return typeof first === 'string' && first ? first : undefined
+  return detail.images?.[0] || undefined
 }
 
 /** Ícono del marcador: gota con el color del tipo y borde blanco. */

@@ -4,7 +4,10 @@
   "city": "Londres",
   "description": "Levantamientos, control geodésico y metodología catastral, junto a pipelines de datos espaciales, análisis territorial y cartografía para toma de decisiones.",
   "camera": {
-    "center": [-0.0005, 51.4769],
+    "center": [
+      -0.0005,
+      51.4769
+    ],
     "zoom": 16,
     "pitch": 60,
     "bearing": 0
@@ -14,36 +17,57 @@
   "markers": [
     {
       "id": "uaegbs-catastro",
-      "coord": [-0.0077, 51.4832],
+      "coord": [
+        -0.0077,
+        51.4832
+      ],
       "title": "Gestión catastral — UAEGBS",
       "type": "geospatial",
       "detail": {
         "kind": "geospatial",
+        "role": "Topógrafo — apoyo geomático",
+        "company": "UAEGBS",
+        "companyLocation": "Cali, Colombia",
         "description": "Apoyo topográfico y geomático a procesos de gestión catastral: verificación en campo de linderos y construcciones, control geodésico de los levantamientos y depuración geométrica de la cartografía predial. El trabajo se describe aquí únicamente a nivel de proceso y herramientas — no se publica información de predios ni de titulares.",
+        "images": [],
         "diagramAsset": "/diagrams/uaegbs-flujo.svg",
         "methodologyText": "1. Planificación técnica — revisión documental previa, definición de las zonas a intervenir y del alcance del levantamiento.\n\n2. Control geodésico — materialización y enlace de puntos de apoyo al marco de referencia oficial MAGNA-SIRGAS, con proyección en el origen único nacional (CTM12) para garantizar consistencia con la cartografía oficial.\n\n3. Levantamiento en campo — captura con receptores GNSS en modo RTK/post-proceso y estación total en zonas sin cobertura de señal, según la precisión exigida por el tipo de trabajo.\n\n4. Post-proceso y ajuste — cálculo y ajuste de las observaciones, control de cierres y evaluación de residuales antes de dar por válida la información.\n\n5. Edición cartográfica y validación topológica — construcción de las geometrías prediales en entorno SIG, control de solapes, vacíos y consistencia entre capas.\n\n6. Entrega — geometrías validadas, metadatos y memoria técnica del procedimiento aplicado.\n\nHerramientas: GNSS RTK, estación total, QGIS, ArcGIS y PostGIS/PostgreSQL para el almacenamiento espacial."
       }
     },
     {
       "id": "smartagro-productividad",
-      "coord": [-0.0053, 51.4808],
+      "coord": [
+        -0.0053,
+        51.4808
+      ],
       "title": "SmartAgro — Mapas de productividad",
       "type": "geospatial",
       "detail": {
         "kind": "geospatial",
+        "role": "Analista GIS / Desarrollador geoespacial",
+        "company": "Cliente confidencial — sector agroindustrial",
+        "companyLocation": "Valle del Cauca, Colombia",
         "description": "Diseño y operación de un pipeline geoespacial para generar mapas de productividad por lote a partir de imágenes multiespectrales y variables agronómicas, orientado a manejo diferenciado por zonas dentro de cada lote. El proyecto se presenta a nivel de arquitectura y proceso: no se publican datos, rendimientos ni geometrías del cliente.",
+        "images": [],
         "diagramAsset": "/diagrams/smartagro-flujo.svg",
         "methodologyText": "1. Ingesta — incorporación periódica de imágenes multiespectrales (satelitales y de dron) junto con las geometrías de los lotes y los registros agronómicos asociados.\n\n2. Preprocesamiento — corrección y homogeneización de las escenas, enmascarado de nubes y sombras, recorte por geometría de lote y remuestreo a una grilla común.\n\n3. Índices y series temporales — cálculo de índices de vegetación (NDVI, NDRE y similares) y construcción de series por lote para observar el comportamiento del cultivo a lo largo del ciclo.\n\n4. Zonificación — clasificación no supervisada de la variabilidad intra-lote en zonas de manejo estables en el tiempo, descartando el ruido de fechas puntuales.\n\n5. Cruce agronómico — contraste de las zonas obtenidas con las variables de manejo disponibles para dar interpretación agronómica a cada clase.\n\n6. Publicación — almacenamiento de resultados en base de datos espacial y exposición como servicio de mapas para consulta en tablero.\n\nHerramientas: Python (rasterio, GDAL, scikit-learn), PostGIS, QGIS y servicios OGC para la publicación."
       }
     },
     {
       "id": "siloe-susceptibilidad",
-      "coord": [-0.0014, 51.4769],
+      "coord": [
+        -0.0014,
+        51.4769
+      ],
       "title": "Susceptibilidad a deslizamientos — Siloé, Cali",
       "type": "geospatial",
       "detail": {
         "kind": "geospatial",
+        "role": "Investigador — trabajo de grado",
+        "company": "Universidad del Valle",
+        "companyLocation": "Cali, Colombia",
         "description": "Trabajo de grado sobre la evaluación de susceptibilidad a movimientos en masa en la ladera occidental de Cali (comuna 20, Siloé), una zona de alta pendiente y ocupación urbana informal. El estudio combina los factores condicionantes del terreno con un inventario de eventos registrados para producir un mapa de susceptibilidad que sirva como insumo de ordenamiento y gestión del riesgo. Al tratarse de un trabajo académico con datos de dominio público, es el único caso del portafolio con la capa cartográfica disponible sobre el mapa.",
+        "images": [],
         "diagramAsset": "/diagrams/siloe-flujo.svg",
         "methodologyText": "1. Inventario de eventos — recopilación y georreferenciación de los movimientos en masa registrados en la zona de estudio, base para calibrar y validar el modelo.\n\n2. Variables condicionantes — derivadas del modelo digital de elevación (pendiente, orientación, curvatura y acumulación de flujo), cobertura y uso del suelo obtenidos de imágenes Sentinel-2, y variables de contexto construidas sobre datos de OpenStreetMap (distancia a vías, a drenajes y a la trama urbana).\n\n3. Homogeneización — reproyección al marco MAGNA-SIRGAS, remuestreo de todas las variables a una grilla común y reclasificación de cada factor en categorías comparables.\n\n4. Modelo de susceptibilidad — ponderación multicriterio de los factores condicionantes y combinación en un índice continuo, posteriormente reclasificado en niveles de susceptibilidad.\n\n5. Validación — contraste del mapa resultante contra el inventario de eventos mediante curvas de éxito/predicción, para verificar la capacidad discriminante del modelo.\n\n6. Cartografía final — edición del mapa de susceptibilidad y publicación de la capa como servicio consultable.\n\nHerramientas: QGIS, Python (GDAL, NumPy, pandas), imágenes Sentinel-2 y datos de OpenStreetMap."
       }
